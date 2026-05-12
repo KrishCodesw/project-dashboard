@@ -28,8 +28,10 @@ import { AdminPublicationsList } from "@/components/dashboard/AdminPublicationsL
 type StatusValue = "DRAFT" | "ACTIVE" | "UNDER_REVIEW" | "COMPLETED" | "ARCHIVED";
 type RoleValue = "LEAD" | "MEMBER";
 
-function toDateInputValue(value: string | Date) {
+function toDateInputValue(value?: string | Date | null) {
+  if (!value) return "";
   const date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return "";
   return date.toISOString().slice(0, 10);
 }
 
@@ -64,10 +66,10 @@ export default function AdminProjectsPage() {
     const q = search.toLowerCase();
     return projects.filter(
       (project: any) =>
-        project.title.toLowerCase().includes(q) ||
-        project.domain.toLowerCase().includes(q) ||
-        project.department?.toLowerCase().includes(q) ||
-        project.teacher?.name?.toLowerCase().includes(q)
+        (project.title || "").toLowerCase().includes(q) ||
+        (project.domain || "").toLowerCase().includes(q) ||
+        (project.department || "").toLowerCase().includes(q) ||
+        (project.teacher?.name || "").toLowerCase().includes(q)
     );
   }, [projects, search]);
 
