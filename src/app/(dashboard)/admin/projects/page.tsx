@@ -16,16 +16,36 @@ import { Trash, Loader2, Pencil, UserPlus, UserX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useAllPublications, usePendingPublicationsCount } from "@/hooks/usePublications";
+import {
+  useAllPublications,
+  usePendingPublicationsCount,
+} from "@/hooks/usePublications";
 import { AdminPublicationsList } from "@/components/dashboard/AdminPublicationsList";
 
-type StatusValue = "DRAFT" | "ACTIVE" | "UNDER_REVIEW" | "COMPLETED" | "ARCHIVED";
+type StatusValue =
+  | "DRAFT"
+  | "ACTIVE"
+  | "UNDER_REVIEW"
+  | "COMPLETED"
+  | "ARCHIVED";
 type RoleValue = "LEAD" | "MEMBER";
 
 function toDateInputValue(value?: string | Date | null) {
@@ -38,13 +58,20 @@ function toDateInputValue(value?: string | Date | null) {
 export default function AdminProjectsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = React.useState("");
-  const [savingProjectId, setSavingProjectId] = React.useState<string | null>(null);
+  const [savingProjectId, setSavingProjectId] = React.useState<string | null>(
+    null,
+  );
   const [editingProject, setEditingProject] = React.useState<any | null>(null);
   const [publicationsOpen, setPublicationsOpen] = React.useState(false);
-  const [mentorDraft, setMentorDraft] = React.useState<Record<string, string>>({});
-  const [memberDraft, setMemberDraft] = React.useState<Record<string, string>>({});
-  const [memberRoleDraft, setMemberRoleDraft] = React.useState<Record<string, RoleValue>>({});
-  const [mounted, setMounted] = React.useState(false);
+  const [mentorDraft, setMentorDraft] = React.useState<Record<string, string>>(
+    {},
+  );
+  const [memberDraft, setMemberDraft] = React.useState<Record<string, string>>(
+    {},
+  );
+  const [memberRoleDraft, setMemberRoleDraft] = React.useState<
+    Record<string, RoleValue>
+  >({});
   const searchParams = useSearchParams();
 
   const { data, isLoading } = useQuery({
@@ -52,9 +79,10 @@ export default function AdminProjectsPage() {
     queryFn: () => getAdminProjectsManagementData(),
   });
 
-  const { data: allPublications = [], isLoading: isPublicationsLoading } = useAllPublications("ALL", {
-    enabled: publicationsOpen,
-  });
+  const { data: allPublications = [], isLoading: isPublicationsLoading } =
+    useAllPublications("ALL", {
+      enabled: publicationsOpen,
+    });
   const { data: pendingCount = 0 } = usePendingPublicationsCount();
 
   const projects = data?.projects ?? [];
@@ -70,7 +98,7 @@ export default function AdminProjectsPage() {
         (project.title || "").toLowerCase().includes(q) ||
         (project.domain || "").toLowerCase().includes(q) ||
         (project.department || "").toLowerCase().includes(q) ||
-        (project.teacher?.name || "").toLowerCase().includes(q)
+        (project.teacher?.name || "").toLowerCase().includes(q),
     );
   }, [projects, search]);
 
@@ -87,7 +115,9 @@ export default function AdminProjectsPage() {
   if (!mounted) return null;
   
   async function refreshData() {
-    await queryClient.invalidateQueries({ queryKey: ["admin", "projects", "manage"] });
+    await queryClient.invalidateQueries({
+      queryKey: ["admin", "projects", "manage"],
+    });
   }
 
   async function onSaveMentor(projectId: string) {
@@ -136,7 +166,11 @@ export default function AdminProjectsPage() {
     }
   }
 
-  async function onUpdateMemberRole(projectId: string, studentId: string, role: RoleValue) {
+  async function onUpdateMemberRole(
+    projectId: string,
+    studentId: string,
+    role: RoleValue,
+  ) {
     setSavingProjectId(projectId);
     try {
       await adminUpdateProjectMemberRole({ projectId, studentId, role });
@@ -163,7 +197,9 @@ export default function AdminProjectsPage() {
   }
 
   async function onDeleteProject(projectId: string) {
-    const ok = window.confirm("Delete this project and all associated data? This cannot be undone.");
+    const ok = window.confirm(
+      "Delete this project and all associated data? This cannot be undone.",
+    );
     if (!ok) return;
 
     setSavingProjectId(projectId);
@@ -209,7 +245,9 @@ export default function AdminProjectsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Projects Management</h1>
-          <p className="text-muted-foreground text-sm">Manage all projects, assign mentors, and edit members</p>
+          <p className="text-muted-foreground text-sm">
+            Manage all projects, assign mentors, and edit members
+          </p>
         </div>
         <div className="flex w-full max-w-xl flex-wrap items-center gap-2">
           <Input
@@ -257,7 +295,8 @@ export default function AdminProjectsPage() {
       ) : (
         <div className="space-y-4">
           {filteredProjects.map((project: any) => {
-            const selectedMentor = mentorDraft[project.id] ?? project.teacher?.id ?? "";
+            const selectedMentor =
+              mentorDraft[project.id] ?? project.teacher?.id ?? "";
             const selectedMember = memberDraft[project.id] ?? "";
             const selectedMemberRole = memberRoleDraft[project.id] ?? "MEMBER";
             const isSaving = savingProjectId === project.id;
@@ -269,23 +308,36 @@ export default function AdminProjectsPage() {
                     <div>
                       <CardTitle className="text-lg">{project.title}</CardTitle>
                       <div className="flex items-center gap-2 mt-1">
-                        <p className="text-sm text-muted-foreground">{project.domain}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {project.domain}
+                        </p>
                         {project.department && (
                           <>
-                            <span className="text-muted-foreground text-xs">•</span>
-                            <p className="text-sm text-muted-foreground font-medium">{project.department}</p>
+                            <span className="text-muted-foreground text-xs">
+                              •
+                            </span>
+                            <p className="text-sm text-muted-foreground font-medium">
+                              {project.department}
+                            </p>
                           </>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{project.status}</Badge>
-                      <Button variant="destructive" size="sm" onClick={() => onDeleteProject(project.id)} disabled={isSaving}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => onDeleteProject(project.id)}
+                        disabled={isSaving}
+                      >
                         <Trash className="mr-2 h-4 w-4" /> Delete
                       </Button>
                       <Dialog
                         open={editingProject?.id === project.id}
-                        onOpenChange={(open) => setEditingProject(open ? project : null)}
+                        onOpenChange={(open) =>
+                          setEditingProject(open ? project : null)
+                        }
                       >
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
@@ -305,30 +357,62 @@ export default function AdminProjectsPage() {
                           >
                             <div className="space-y-1.5">
                               <Label>Title</Label>
-                              <Input name="title" defaultValue={project.title} required minLength={3} />
+                              <Input
+                                name="title"
+                                defaultValue={project.title}
+                                required
+                                minLength={3}
+                              />
                             </div>
                             <div className="space-y-1.5">
                               <Label>Description</Label>
-                              <Input name="description" defaultValue={project.description} required minLength={10} />
+                              <Input
+                                name="description"
+                                defaultValue={project.description}
+                                required
+                                minLength={10}
+                              />
                             </div>
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-1.5">
                                 <Label>Domain</Label>
-                                <Input name="domain" defaultValue={project.domain} required />
+                                <Input
+                                  name="domain"
+                                  defaultValue={project.domain}
+                                  required
+                                />
                               </div>
                               <div className="space-y-1.5">
                                 <Label>Department</Label>
-                                <Input name="department" defaultValue={project.department} required />
+                                <Input
+                                  name="department"
+                                  defaultValue={project.department}
+                                  required
+                                />
                               </div>
                             </div>
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-1.5">
                                 <Label>Start Date</Label>
-                                <Input name="startDate" type="date" defaultValue={toDateInputValue(project.startDate)} required />
+                                <Input
+                                  name="startDate"
+                                  type="date"
+                                  defaultValue={toDateInputValue(
+                                    project.startDate,
+                                  )}
+                                  required
+                                />
                               </div>
                               <div className="space-y-1.5">
                                 <Label>End Date</Label>
-                                <Input name="endDate" type="date" defaultValue={toDateInputValue(project.endDate)} required />
+                                <Input
+                                  name="endDate"
+                                  type="date"
+                                  defaultValue={toDateInputValue(
+                                    project.endDate,
+                                  )}
+                                  required
+                                />
                               </div>
                             </div>
                             <div className="grid gap-3 sm:grid-cols-2">
@@ -345,22 +429,39 @@ export default function AdminProjectsPage() {
                               </div>
                               <div className="space-y-1.5">
                                 <Label>Status</Label>
-                                <Select name="status" defaultValue={project.status}>
+                                <Select
+                                  name="status"
+                                  defaultValue={project.status}
+                                >
                                   <SelectTrigger>
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="DRAFT">DRAFT</SelectItem>
-                                    <SelectItem value="ACTIVE">ACTIVE</SelectItem>
-                                    <SelectItem value="UNDER_REVIEW">UNDER_REVIEW</SelectItem>
-                                    <SelectItem value="COMPLETED">COMPLETED</SelectItem>
-                                    <SelectItem value="ARCHIVED">ARCHIVED</SelectItem>
+                                    <SelectItem value="ACTIVE">
+                                      ACTIVE
+                                    </SelectItem>
+                                    <SelectItem value="UNDER_REVIEW">
+                                      UNDER_REVIEW
+                                    </SelectItem>
+                                    <SelectItem value="COMPLETED">
+                                      COMPLETED
+                                    </SelectItem>
+                                    <SelectItem value="ARCHIVED">
+                                      ARCHIVED
+                                    </SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
                             </div>
-                            <Button type="submit" className="w-full mt-2" disabled={isSaving}>
-                              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            <Button
+                              type="submit"
+                              className="w-full mt-2"
+                              disabled={isSaving}
+                            >
+                              {isSaving ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : null}
                               Save Changes
                             </Button>
                           </form>
@@ -394,16 +495,25 @@ export default function AdminProjectsPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button onClick={() => onSaveMentor(project.id)} disabled={isSaving}>
-                      {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    <Button
+                      onClick={() => onSaveMentor(project.id)}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
                       Save Mentor
                     </Button>
                   </div>
 
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold">Members ({project.members.length}/{project.maxGroupSize})</h3>
+                    <h3 className="text-sm font-semibold">
+                      Members ({project.members.length}/{project.maxGroupSize})
+                    </h3>
                     {project.members.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No members yet</p>
+                      <p className="text-sm text-muted-foreground">
+                        No members yet
+                      </p>
                     ) : (
                       <div className="space-y-2">
                         {project.members.map((member: any) => (
@@ -412,14 +522,22 @@ export default function AdminProjectsPage() {
                             className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2"
                           >
                             <div className="text-sm">
-                              <p className="font-medium">{member.student.name}</p>
-                              <p className="text-muted-foreground">{member.student.email}</p>
+                              <p className="font-medium">
+                                {member.student.name}
+                              </p>
+                              <p className="text-muted-foreground">
+                                {member.student.email}
+                              </p>
                             </div>
                             <div className="flex items-center gap-2">
                               <Select
                                 value={member.role}
                                 onValueChange={(value) =>
-                                  onUpdateMemberRole(project.id, member.studentId, value as RoleValue)
+                                  onUpdateMemberRole(
+                                    project.id,
+                                    member.studentId,
+                                    value as RoleValue,
+                                  )
                                 }
                               >
                                 <SelectTrigger className="w-32">
@@ -433,7 +551,9 @@ export default function AdminProjectsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => onRemoveMember(project.id, member.studentId)}
+                                onClick={() =>
+                                  onRemoveMember(project.id, member.studentId)
+                                }
                                 disabled={isSaving}
                               >
                                 <UserX className="h-4 w-4 text-destructive" />
@@ -489,8 +609,15 @@ export default function AdminProjectsPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button onClick={() => onAddMember(project.id)} disabled={isSaving}>
-                      {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                    <Button
+                      onClick={() => onAddMember(project.id)}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <UserPlus className="mr-2 h-4 w-4" />
+                      )}
                       Add
                     </Button>
                   </div>
