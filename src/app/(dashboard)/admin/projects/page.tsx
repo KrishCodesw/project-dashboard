@@ -44,6 +44,7 @@ export default function AdminProjectsPage() {
   const [mentorDraft, setMentorDraft] = React.useState<Record<string, string>>({});
   const [memberDraft, setMemberDraft] = React.useState<Record<string, string>>({});
   const [memberRoleDraft, setMemberRoleDraft] = React.useState<Record<string, RoleValue>>({});
+  const [mounted, setMounted] = React.useState(false);
   const searchParams = useSearchParams();
 
   const { data, isLoading } = useQuery({
@@ -80,6 +81,11 @@ export default function AdminProjectsPage() {
     }
   }, [searchParams]);
 
+  React.useEffect(() => {
+  setMounted(true);
+  }, []);
+  if (!mounted) return null;
+  
   async function refreshData() {
     await queryClient.invalidateQueries({ queryKey: ["admin", "projects", "manage"] });
   }
