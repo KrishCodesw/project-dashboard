@@ -28,8 +28,10 @@ import { AdminPublicationsList } from "@/components/dashboard/AdminPublicationsL
 type StatusValue = "DRAFT" | "ACTIVE" | "UNDER_REVIEW" | "COMPLETED" | "ARCHIVED";
 type RoleValue = "LEAD" | "MEMBER";
 
-function toDateInputValue(value: string | Date) {
+function toDateInputValue(value?: string | Date | null) {
+  if (!value) return "";
   const date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return "";
   return date.toISOString().slice(0, 10);
 }
 
@@ -42,6 +44,7 @@ export default function AdminProjectsPage() {
   const [mentorDraft, setMentorDraft] = React.useState<Record<string, string>>({});
   const [memberDraft, setMemberDraft] = React.useState<Record<string, string>>({});
   const [memberRoleDraft, setMemberRoleDraft] = React.useState<Record<string, RoleValue>>({});
+  const [mounted, setMounted] = React.useState(false);
   const searchParams = useSearchParams();
 
   const { data, isLoading } = useQuery({
@@ -64,10 +67,10 @@ export default function AdminProjectsPage() {
     const q = search.toLowerCase();
     return projects.filter(
       (project: any) =>
-        project.title.toLowerCase().includes(q) ||
-        project.domain.toLowerCase().includes(q) ||
-        project.department?.toLowerCase().includes(q) ||
-        project.teacher?.name?.toLowerCase().includes(q)
+        (project.title || "").toLowerCase().includes(q) ||
+        (project.domain || "").toLowerCase().includes(q) ||
+        (project.department || "").toLowerCase().includes(q) ||
+        (project.teacher?.name || "").toLowerCase().includes(q)
     );
   }, [projects, search]);
 
@@ -78,6 +81,11 @@ export default function AdminProjectsPage() {
     }
   }, [searchParams]);
 
+  React.useEffect(() => {
+  setMounted(true);
+  }, []);
+  if (!mounted) return null;
+  
   async function refreshData() {
     await queryClient.invalidateQueries({ queryKey: ["admin", "projects", "manage"] });
   }

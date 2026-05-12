@@ -30,8 +30,9 @@ const adminUpdateProjectSchema = z.object({
   title: z.string().min(3),
   description: z.string().min(10),
   domain: z.string().min(2),
-  groupNo: z.string().regex(/^[a-zA-Z]{2}-[a-zA-Z]+(?:-[a-zA-Z]+)?-\d+$/),
-  isRblProject: z.boolean(),
+  department: z.string().min(2),
+  groupNo: z.string().regex(/^[a-zA-Z]{2}-[a-zA-Z]+(?:-[a-zA-Z]+)?-\d+$/).optional(),
+  isRblProject: z.boolean().optional(),
   status: z.enum(["DRAFT", "ACTIVE", "UNDER_REVIEW", "COMPLETED", "ARCHIVED"]),
   maxGroupSize: z.number().min(1).max(10),
   startDate: z.string(),
@@ -339,6 +340,7 @@ export async function getAdminProjectsManagementData() {
         title: true,
         description: true,
         domain: true,
+        department: true,
         status: true,
         groupNo: true,        // Added field
         isRblProject: true,   // Added field
@@ -406,6 +408,7 @@ export async function adminUpdateProject(data: z.infer<typeof adminUpdateProject
       title: validated.title,
       description: validated.description,
       domain: validated.domain,
+      department: validated.department,
       groupNo: validated.groupNo,             // Added field
       isRblProject: validated.isRblProject,   // Added field
       status: validated.status,
