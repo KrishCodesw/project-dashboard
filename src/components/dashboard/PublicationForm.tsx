@@ -117,6 +117,7 @@ export function PublicationForm({
 }: PublicationFormProps) {
   const [open, setOpen] = useState(false);
   const [authorInput, setAuthorInput] = useState("");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const createMutation = useCreatePublication();
   const updateMutation = useUpdatePublication();
@@ -468,7 +469,8 @@ export function PublicationForm({
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Publication Date *</FormLabel>
-                  <Popover>
+                  {/* modal={true} ensures the Dialog doesn't block Calendar clicks */}
+                  <Popover modal={true}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -487,14 +489,18 @@ export function PublicationForm({
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    {/* Added min-w-[280px] to prevent the CSS bunching bug */}
+                    <PopoverContent
+                      className="w-auto min-w-[280px] p-0 z-[100]"
+                      align="start"
+                    >
                       <Calendar
                         mode="single"
                         selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date > new Date() || date < new Date("1900-01-01")
-                        }
+                        onSelect={(date) => {
+                          if (date) field.onChange(date);
+                        }}
+                        disabled={(date) => date < new Date("1900-01-01")}
                         initialFocus
                       />
                     </PopoverContent>
