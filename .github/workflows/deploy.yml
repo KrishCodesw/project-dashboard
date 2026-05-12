@@ -1,0 +1,21 @@
+name: Deploy Dashboard
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Deploy application
+        run: |
+          cd /home/tcetcercd/project-dashboard
+          git pull origin main
+          npm install --legacy-peer-deps
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run build
+          pm2 restart dashboard
