@@ -66,7 +66,7 @@ const DEPARTMENT_DOMAINS: Record<string, string[]> = {
   "B.E. Information Technology": [
     "Information and communication Technology",
     "Software Product Development",
-    "Artificial Intellignece & Machine Learning",
+    "Artificial Intelligence & Machine Learning",
     "Web Technology and Ecommerce",
     "Database Technology",
   ],
