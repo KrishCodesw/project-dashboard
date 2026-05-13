@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
@@ -24,14 +24,6 @@ import { useTags } from "@/hooks/useProjects";
 import { createProject } from "@/server/actions/projects";
 import { toast } from "sonner";
 
-const DOMAINS = [
-  "Communication Networking and Web Engineering",
-  "Computing and System Design",
-  "Intelligent System Design and Development",
-  "Multimedia Design and Development",
-  "Software Development & Information Systems",
-] as const;
-
 const DEPARTMENTS = [
   "B.E. Computer Engineering",
   "B.E. Information Technology",
@@ -47,10 +39,64 @@ const DEPARTMENTS = [
   "B.Tech – Computer Science & Engineering (CSE-IOT)",
 ] as const;
 
+// Default Domains (Used for Computer Engineering and as a fallback)
+const CE_DOMAINS = [
+  "Communication Networking and Web Engineering",
+  "Computing and System Design",
+  "Intelligent System Design and Development",
+  "Multimedia Design and Development",
+  "Software Development & Information System Management",
+];
+
+const DEPARTMENT_DOMAINS: Record<string, string[]> = {
+  "B.E. Computer Engineering": CE_DOMAINS,
+  "B.E - Mechanical Engineering": [
+    "Manufacturing",
+    "Thermal Design",
+    "Automation",
+  ],
+  "B.E. Civil Engineering": [
+    "Construction Management",
+    "Environment Engineering",
+    "Geotechnical Engineering",
+    "Structural Engineering",
+    "Transportation Engineering",
+    "Water Resource Engineering",
+  ],
+  "B.E. Information Technology": [
+    "Information and communication Technology",
+    "Software Product Development",
+    "Artificial Intelligence & Machine Learning",
+    "Web Technology and Ecommerce",
+    "Database Technology",
+  ],
+  "B.Tech – Artificial Intelligence & Machine Learning": [
+    "Health Care",
+    "Agritech",
+    "Security",
+    "Gaming",
+    "Social Benefits",
+  ],
+  "B.Tech – Internet of Things (IoT)": [
+    "Secure Software Design & Development",
+    "Security Architecture and Design",
+    "Communications and Network Security",
+    "Cybersecurity and Artificial Intelligence",
+    "Multimedia Systems and Cybersecurity",
+  ],
+  "B.Tech – Artificial Intelligence & Data Science": [
+    "AgriTech",
+    "Education Entertainment & Hospitality",
+    "Life Science & Pharmaceuticals",
+    "Manufacturing, Retail and E-commerce",
+    "FinTech",
+  ],
+};
+
 const projectSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  domain: z.enum(DOMAINS, { required_error: "Please select a domain" }),
+  domain: z.string().min(1, "Please select a domain"),
   department: z.enum(DEPARTMENTS, {
     required_error: "Please select a department",
   }),
@@ -84,22 +130,33 @@ export default function NewProjectPage() {
     handleSubmit,
     trigger,
     control,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<ProjectForm>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
       maxGroupSize: 4,
       isRblProject: false,
+      domain: "",
     },
   });
+
+  // Watch the selected department to update available domains dynamically
+  const selectedDepartment = watch("department");
+
+  // Resolve domains: Fallback to CE_DOMAINS if specific department mapping doesn't exist
+  const availableDomains = selectedDepartment
+    ? DEPARTMENT_DOMAINS[selectedDepartment] || CE_DOMAINS
+    : [];
 
   async function goNext() {
     if (step === 0) {
       const valid = await trigger([
         "title",
         "description",
-        "domain",
         "department",
+        "domain",
         "groupNo",
         "maxGroupSize",
       ]);
@@ -215,36 +272,7 @@ export default function NewProjectPage() {
 
               {/* Shadcn UI Select Components */}
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="domain">Domain</Label>
-                  <Controller
-                    name="domain"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <SelectTrigger id="domain">
-                          <SelectValue placeholder="Select Domain..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DOMAINS.map((domain) => (
-                            <SelectItem key={domain} value={domain}>
-                              {domain}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {errors.domain && (
-                    <p className="text-sm text-destructive">
-                      {errors.domain.message}
-                    </p>
-                  )}
-                </div>
-
+                {/* Department Select - Moved to Top/Left */}
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
                   <Controller
@@ -252,7 +280,11 @@ export default function NewProjectPage() {
                     control={control}
                     render={({ field }) => (
                       <Select
-                        onValueChange={field.onChange}
+                        onValueChange={(val) => {
+                          field.onChange(val);
+                          // Reset domain selection when department changes
+                          setValue("domain", "", { shouldValidate: true });
+                        }}
                         value={field.value}
                       >
                         <SelectTrigger id="department">
@@ -274,6 +306,44 @@ export default function NewProjectPage() {
                     </p>
                   )}
                 </div>
+
+                {/* Domain Select - Dependent on Department */}
+                <div className="space-y-2">
+                  <Label htmlFor="domain">Domain</Label>
+                  <Controller
+                    name="domain"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={!selectedDepartment}
+                      >
+                        <SelectTrigger id="domain">
+                          <SelectValue
+                            placeholder={
+                              selectedDepartment
+                                ? "Select Domain..."
+                                : "Select Department First"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableDomains.map((domain) => (
+                            <SelectItem key={domain} value={domain}>
+                              {domain}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.domain && (
+                    <p className="text-sm text-destructive">
+                      {errors.domain.message}
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Group Number & Max Group Size */}
@@ -283,7 +353,6 @@ export default function NewProjectPage() {
                   <Input
                     id="groupNo"
                     {...register("groupNo", {
-                      // Optional: forces the input to be uppercase as the user types
                       onChange: (e) => {
                         e.target.value = e.target.value.toUpperCase();
                       },
