@@ -50,6 +50,8 @@ const CE_DOMAINS = [
 
 const DEPARTMENT_DOMAINS: Record<string, string[]> = {
   "B.E. Computer Engineering": CE_DOMAINS,
+  "B.E. Computer Science and Engineering (Cyber Security)": CE_DOMAINS, // Fallback
+  "B.Tech – Computer Science & Engineering (CSE-IOT)": CE_DOMAINS, // Fallback
   "B.E - Mechanical Engineering": [
     "Manufacturing",
     "Thermal Design",
@@ -66,7 +68,7 @@ const DEPARTMENT_DOMAINS: Record<string, string[]> = {
   "B.E. Information Technology": [
     "Information and communication Technology",
     "Software Product Development",
-    "Artificial Intelligence & Machine Learning",
+    "Artificial Intellignece & Machine Learning",
     "Web Technology and Ecommerce",
     "Database Technology",
   ],
@@ -78,11 +80,11 @@ const DEPARTMENT_DOMAINS: Record<string, string[]> = {
     "Social Benefits",
   ],
   "B.Tech – Internet of Things (IoT)": [
-    "Secure Software Design & Development",
-    "Security Architecture and Design",
-    "Communications and Network Security",
-    "Cybersecurity and Artificial Intelligence",
-    "Multimedia Systems and Cybersecurity",
+    "Embedded System & Hardware Design",
+    "IoT Networking & Communication Technologies",
+    "IoT Security & Privacy",
+    "Data Management and Analytics",
+    "IoT Application & Integration",
   ],
   "B.Tech – Artificial Intelligence & Data Science": [
     "AgriTech",
@@ -90,6 +92,26 @@ const DEPARTMENT_DOMAINS: Record<string, string[]> = {
     "Life Science & Pharmaceuticals",
     "Manufacturing, Retail and E-commerce",
     "FinTech",
+  ],
+  "B.E. Mechanical and Mechatronics Engineering (Additive Manufacturing)": [
+    "Automation",
+    "Advanced Manufacturing",
+    "Electro Mechanical",
+    "Mechanical Design",
+  ],
+  "B.E - Electronics and Computer Science": [
+    "Digital Systems and Communication",
+    "Embedded Systems and IoT",
+    "Software Engineering and Systems",
+    "Intelligent Systems and Data Science",
+    "Cybersecurity and Networking",
+  ],
+  "B.E. Electronics & Tele-Communication": [
+    "Advance Communication",
+    "Signal Processing",
+    "EDM",
+    "Embedded/IoT",
+    "IT",
   ],
 };
 

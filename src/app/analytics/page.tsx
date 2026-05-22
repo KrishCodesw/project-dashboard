@@ -775,7 +775,7 @@ const DONUT_COLORS = [
   "#ec4899",
   "#14b8a6",
   "#94a3b8",
-]; // Added neutral gray for "Others"
+];
 const AREA_GRADIENT = [
   "#6366f1",
   "#22d3ee",
@@ -867,7 +867,7 @@ const getTopNData = (dataMap: Record<string, number>, n: number = 7) => {
   return top;
 };
 
-type FilterType = | "sdg" | "class" | "category" | "techFocus";
+type FilterType = "sdg" | "class" | "category" | "techFocus";
 type SelectedFilters = Record<FilterType, string[]>;
 type FilterOption = { value: string; count: number };
 type FilterOptionMap = Record<FilterType, FilterOption[]>;
@@ -921,7 +921,6 @@ export default function AnalyticsDashboard() {
   const [draftFilters, setDraftFilters] =
     useState<SelectedFilters>(createEmptyFilters());
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [isFilterCardExpanded, setIsFilterCardExpanded] = useState(false);
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const filterPopoverRef = useRef<HTMLDivElement | null>(null);
   const [expandedSections, setExpandedSections] = useState<
@@ -933,10 +932,14 @@ export default function AnalyticsDashboard() {
     techFocus: false,
   });
 
+  // State to manage Drill-down view inside the Class filter
+  const [activeDeptView, setActiveDeptView] = useState<string | null>(null);
+
   useEffect(() => {
     setSelectedFilters(createEmptyFilters());
     setDraftFilters(createEmptyFilters());
     setSearchQuery("");
+    setActiveDeptView(null);
   }, [activeTab]);
 
   useEffect(() => {
@@ -962,7 +965,7 @@ export default function AnalyticsDashboard() {
   }, [showFilterPanel]);
 
   const toggleFilter = (type: FilterType, value: string) => {
-    if (value === "Others") return; // Prevent filtering by "Others"
+    if (value === "Others") return;
     setSelectedFilters((prev) => {
       const hasValue = prev[type].includes(value);
       return {
@@ -997,13 +1000,6 @@ export default function AnalyticsDashboard() {
   const toggleSection = (type: FilterType) => {
     setExpandedSections((prev) => ({ ...prev, [type]: !prev[type] }));
   };
-  const setAllForType = (
-    type: FilterType,
-    values: string[],
-    checked: boolean,
-  ) => {
-    setDraftFilters((prev) => ({ ...prev, [type]: checked ? values : [] }));
-  };
 
   const hasActiveFilters = useMemo(
     () => Object.values(selectedFilters).some((values) => values.length > 0),
@@ -1017,18 +1013,10 @@ export default function AnalyticsDashboard() {
       ),
     [selectedFilters],
   );
-  const draftSelectedEntries = useMemo(
-    () =>
-      ALL_FILTER_TYPES.flatMap((type) =>
-        draftFilters[type].map((value) => ({ type, value })),
-      ),
-    [draftFilters],
-  );
-  const draftFilterCount = draftSelectedEntries.length;
+
   const isDimmed = (type: FilterType, value: string) =>
     selectedFilters[type].length > 0 && !selectedFilters[type].includes(value);
 
-  // Filter Panel Options - Keep ALL exact options for accurate filtering, sanitized
   const filterOptions = useMemo<FilterOptionMap>(() => {
     const beBase = activeTab === "rbl" ? [] : beProjects;
     const rblBase = activeTab === "be" ? [] : rblGroups;
@@ -1131,7 +1119,6 @@ export default function AnalyticsDashboard() {
     };
   }, [selectedFilters, searchQuery, activeTab]);
 
-  // Computed metrics (Strictly Sanitized)
   const metrics = useMemo(() => {
     const totalBE = filteredBE.length;
     const totalRBL = filteredRBL.length;
@@ -1144,7 +1131,6 @@ export default function AnalyticsDashboard() {
       ...filteredRBL.map((p) => p.guide),
     ]).size;
 
-    // Strict sanitization & Top N groupings
     const domainCounts: Record<string, number> = {};
     filteredBE.forEach((p) => {
       if (isValidString(p.domain))
@@ -1168,7 +1154,7 @@ export default function AnalyticsDashboard() {
         sdgCounts[num].count++;
       }
     });
-    const sdgData = Object.values(sdgCounts).sort((a, b) => b.count - a.count); // SDGs usually aren't grouped, just ordered
+    const sdgData = Object.values(sdgCounts).sort((a, b) => b.count - a.count);
 
     const techFocusCounts: Record<string, number> = Object.keys(
       TECH_FOCUS_CATEGORIES,
@@ -1218,7 +1204,7 @@ export default function AnalyticsDashboard() {
     });
 
     const categoryData = getTopNData(categoryCounts, 7);
-    const applicationData = getTopNData(applicationCounts, 8); // Top 8 for bar chart clarity
+    const applicationData = getTopNData(applicationCounts, 8);
 
     return {
       totalProjects,
@@ -1294,19 +1280,35 @@ export default function AnalyticsDashboard() {
   const CustomTooltipStyle =
     "bg-neutral-900 dark:bg-black border border-neutral-800 rounded-lg px-4 py-3 shadow-2xl text-white text-xs max-w-[240px] whitespace-normal font-medium tracking-wide";
 
+  // --- Dynamic Class Filter Data Prep ---
+  const availableDepts =
+    activeTab === "be" ? ["BE"] : activeTab === "rbl" ? ["TE"] : ["BE", "TE"];
+  const isShowingDepartments = availableDepts.length > 1 && !activeDeptView;
+
+  const displayData = isShowingDepartments
+    ? availableDepts.map((dept) => ({
+        name: dept,
+        value: metrics.classData
+          .filter((c) => c.name.startsWith(dept))
+          .reduce((sum, c) => sum + c.value, 0),
+        isDept: true,
+      }))
+    : metrics.classData
+        .filter((c) => c.name.startsWith(activeDeptView || availableDepts[0]))
+        .map((c) => ({ ...c, isDept: false }));
+
   return (
     <div className="relative w-full min-h-screen bg-neutral-50 dark:bg-[#0a0a0a] overflow-hidden font-sans">
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; border-radius: 10px; }
-      `,
+          .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3f3f46; border-radius: 10px; }
+        `,
         }}
       />
 
-      {/* Subtle Grid Background for Deep Brutalism Feel */}
       <div className="fixed inset-0 -z-20 dark:bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
 
       <div className="fixed top-0 left-0 right-0 z-50 h-24 pointer-events-none">
@@ -1365,7 +1367,10 @@ export default function AnalyticsDashboard() {
                   >
                     <div className="space-y-4">
                       {(ALL_FILTER_TYPES as FilterType[]).map((type) => (
-                        <div key={type} className="border-b border-neutral-200 dark:border-neutral-800 pb-3 last:border-b-0">
+                        <div
+                          key={type}
+                          className="border-b border-neutral-200 dark:border-neutral-800 pb-3 last:border-b-0"
+                        >
                           <button
                             onClick={() => toggleSection(type)}
                             className="flex items-center justify-between w-full text-sm font-semibold text-neutral-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
@@ -1463,7 +1468,6 @@ export default function AnalyticsDashboard() {
           </div>
         </motion.div>
 
-        {/* Sharp KPI Cards */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1495,10 +1499,8 @@ export default function AnalyticsDashboard() {
           ))}
         </motion.div>
 
-        {/* Sharp Chart Layout */}
         {activeTab !== "rbl" && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-            {/* Domain Distribution */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1556,7 +1558,6 @@ export default function AnalyticsDashboard() {
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                {/* Scrollable Clean Legend */}
                 <div className="w-full sm:w-1/2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2 space-y-2">
                   {metrics.domainData.map((d, i) => (
                     <div
@@ -1585,7 +1586,6 @@ export default function AnalyticsDashboard() {
               </div>
             </motion.div>
 
-            {/* Strict SDG Alignment */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1739,25 +1739,50 @@ export default function AnalyticsDashboard() {
           >
             <div className="flex items-center justify-between mb-4 pb-4 border-b border-neutral-100 dark:border-neutral-800/50">
               <h3 className="text-sm font-bold uppercase tracking-wider text-neutral-900 dark:text-white">
-                Class Analytics
+                {isShowingDepartments
+                  ? "Department Analytics"
+                  : `${activeDeptView || availableDepts[0]} Divisions`}
               </h3>
+              {!isShowingDepartments && availableDepts.length > 1 && (
+                <button
+                  onClick={() => setActiveDeptView(null)}
+                  className="text-[10px] uppercase font-bold text-indigo-500 hover:text-indigo-600 transition-colors"
+                >
+                  &larr; Back to Depts
+                </button>
+              )}
             </div>
             <div className="space-y-4 pt-2">
-              {metrics.classData.map((item, i) => {
-                const maxVal = Math.max(
-                  ...metrics.classData.map((c) => c.value),
-                );
+              {displayData.map((item, i) => {
+                const maxVal = Math.max(...displayData.map((c) => c.value));
                 const pct = maxVal === 0 ? 0 : (item.value / maxVal) * 100;
-                const isFaded = isDimmed("class", item.name);
+
+                let isFaded = false;
+                if (item.isDept) {
+                  isFaded =
+                    selectedFilters.class.length > 0 &&
+                    !selectedFilters.class.some((c) => c.startsWith(item.name));
+                } else {
+                  isFaded = isDimmed("class", item.name);
+                }
+
                 return (
                   <div
                     key={item.name}
-                    className={`space-y-1.5 cursor-pointer transition-opacity ${isFaded ? "opacity-30" : "hover:opacity-80"}`}
-                    onClick={() => toggleFilter("class", item.name)}
+                    className={`space-y-1.5 cursor-pointer transition-opacity ${
+                      isFaded ? "opacity-30" : "hover:opacity-80"
+                    }`}
+                    onClick={() => {
+                      if (item.isDept) {
+                        setActiveDeptView(item.name);
+                      } else {
+                        toggleFilter("class", item.name);
+                      }
+                    }}
                   >
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-neutral-700 dark:text-neutral-300">
-                        {item.name}
+                        {item.isDept ? `${item.name} Department` : item.name}
                       </span>
                       <span className="text-xs font-black text-neutral-900 dark:text-white">
                         {item.value}
@@ -1872,7 +1897,6 @@ export default function AnalyticsDashboard() {
               </div>
             </motion.div>
 
-            {/* Horizontal Bar for Applications (Solves the squished bars) */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1926,10 +1950,7 @@ export default function AnalyticsDashboard() {
                       );
                     }}
                   />
-                  <Bar
-                    dataKey="count"
-                    radius={[0, 4, 4, 0]}
-                  >
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                     {metrics.applicationData.map((d, i) => (
                       <Cell
                         key={i}
@@ -1944,7 +1965,6 @@ export default function AnalyticsDashboard() {
           </div>
         )}
 
-        {/* Project Results */}
         {(hasActiveFilters || searchQuery) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
