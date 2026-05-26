@@ -80,7 +80,7 @@ export async function approveProjectEdit(projectId: string) {
       maxGroupSize: edits.maxGroupSize,
       hasPendingEdit: false,
       // Prisma accepts Prisma.DbNull or Prisma.JsonNull, but standard null usually works for optional Json
-      pendingEditData: null, 
+      pendingEditData: null as any, 
     },
   });
 
@@ -97,7 +97,7 @@ export async function rejectProjectEdit(projectId: string) {
     where: { id: projectId },
     data: {
       hasPendingEdit: false,
-      pendingEditData: null,
+      pendingEditData: null as any,
     },
   });
 
