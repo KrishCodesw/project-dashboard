@@ -25,6 +25,88 @@ const adminUploadAssignmentsSchema = z.object({
   csvContent: z.string().min(1),
 });
 
+const requestEditSchema = z.object({
+  projectId: z.string().min(1),
+  title: z.string().min(3),
+  description: z.string().min(10),
+  domain: z.string().min(2),
+  department: z.string().min(2),
+  startDate: z.string(),
+  endDate: z.string(),
+  maxGroupSize: z.number().min(1).max(10),
+});
+
+export async function requestProjectEdit(data: z.infer<typeof requestEditSchema>) {
+  // Allow any authenticated user (Teacher/Student) to submit a request
+  // Validation can be expanded here to ensure they belong to the project
+  const validated = requestEditSchema.parse(data);
+
+  const project = await prisma.project.findUnique({ where: { id: validated.projectId } });
+  if (!project) throw new Error("Project not found");
+
+  await prisma.project.update({
+    where: { id: validated.projectId },
+    data: {
+      hasPendingEdit: true,
+      pendingEditData: validated,
+    },
+  });
+
+  revalidatePath(`/teacher/projects/${validated.projectId}`);
+  revalidatePath(`/student/projects/${validated.projectId}`);
+  revalidatePath("/admin/projects");
+  return { ok: true };
+}
+
+export async function approveProjectEdit(projectId: string) {
+  await requireAdminSession();
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || !project.pendingEditData) {
+    throw new Error("No pending edits found for this project");
+  }
+
+  const edits = project.pendingEditData as any;
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      title: edits.title,
+      description: edits.description,
+      domain: edits.domain,
+      department: edits.department,
+      startDate: new Date(edits.startDate),
+      endDate: new Date(edits.endDate),
+      maxGroupSize: edits.maxGroupSize,
+      hasPendingEdit: false,
+      // Prisma accepts Prisma.DbNull or Prisma.JsonNull, but standard null usually works for optional Json
+      pendingEditData: null, 
+    },
+  });
+
+  revalidatePath("/admin/projects");
+  revalidatePath(`/teacher/projects/${projectId}`);
+  revalidatePath(`/student/projects/${projectId}`);
+  return { ok: true };
+}
+
+export async function rejectProjectEdit(projectId: string) {
+  await requireAdminSession();
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      hasPendingEdit: false,
+      pendingEditData: null,
+    },
+  });
+
+  revalidatePath("/admin/projects");
+  revalidatePath(`/teacher/projects/${projectId}`);
+  revalidatePath(`/student/projects/${projectId}`);
+  return { ok: true };
+}
+
 const adminUpdateProjectSchema = z.object({
   projectId: z.string().min(1),
   title: z.string().min(3),
@@ -342,12 +424,15 @@ export async function getAdminProjectsManagementData() {
         domain: true,
         department: true,
         status: true,
-        groupNo: true,        // Added field
-        isRblProject: true,   // Added field
+        groupNo: true,
+        isRblProject: true,
         maxGroupSize: true,
         startDate: true,
         endDate: true,
         updatedAt: true,
+        // MUST ADD THESE TWO LINES:
+        hasPendingEdit: true,
+        pendingEditData: true,
         teacher: {
           select: {
             id: true,
@@ -832,7 +917,7 @@ export async function getProjectById(projectId: string) {
       tags: { include: { tag: true } },
       _count: {
         select: { tasks: true, milestones: true, reviews: true, files: true },
-      },
+      }, 
     },
   });
 }

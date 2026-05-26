@@ -8,6 +8,9 @@ import {
   getTeacherDashboardStats,
   getStudentDashboardStats,
   getAllTags,
+  requestProjectEdit,
+  approveProjectEdit,
+  rejectProjectEdit,
 } from "@/server/actions/projects";
 
 export function useTeacherProjects(teacherId: string) {
@@ -54,5 +57,49 @@ export function useTags() {
   return useQuery({
     queryKey: ["tags"],
     queryFn: () => getAllTags(),
+  });
+}
+
+// --- New Mutations for Edit Request Feature ---
+
+export function useRequestProjectEdit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: Parameters<typeof requestProjectEdit>[0]) =>
+      requestProjectEdit(data),
+    onSuccess: (_, variables) => {
+      // Invalidate the specific project so the "Review Required" badge appears
+      queryClient.invalidateQueries({
+        queryKey: ["project", variables.projectId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "projects", "manage"],
+      });
+    },
+  });
+}
+
+export function useApproveProjectEdit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (projectId: string) => approveProjectEdit(projectId),
+    onSuccess: (_, projectId) => {
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "projects", "manage"] });
+    },
+  });
+}
+
+export function useRejectProjectEdit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (projectId: string) => rejectProjectEdit(projectId),
+    onSuccess: (_, projectId) => {
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "projects", "manage"] });
+    },
   });
 }

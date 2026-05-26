@@ -11,8 +11,18 @@ import {
   adminUpdateProjectMemberRole,
   adminRemoveProjectMember,
   adminDeleteProject,
+  approveProjectEdit,
+  rejectProjectEdit,
 } from "@/server/actions/projects";
-import { Trash, Loader2, Pencil, UserPlus, UserX } from "lucide-react";
+import {
+  Trash,
+  Loader2,
+  Pencil,
+  UserPlus,
+  UserX,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,7 +50,7 @@ import {
 } from "@/hooks/usePublications";
 import { AdminPublicationsList } from "@/components/dashboard/AdminPublicationsList";
 
-// --- Shared Constants (Should ideally be extracted to a shared utilities file) ---
+// --- Shared Constants ---
 const DEPARTMENTS = [
   "B.E. Computer Engineering",
   "B.E. Information Technology",
@@ -215,6 +225,32 @@ export default function AdminProjectsPage() {
     await queryClient.invalidateQueries({
       queryKey: ["admin", "projects", "manage"],
     });
+  }
+
+  async function onApproveEdit(projectId: string) {
+    setSavingProjectId(projectId);
+    try {
+      await approveProjectEdit(projectId);
+      toast.success("Edit request approved and applied.");
+      await refreshData();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve edit");
+    } finally {
+      setSavingProjectId(null);
+    }
+  }
+
+  async function onRejectEdit(projectId: string) {
+    setSavingProjectId(projectId);
+    try {
+      await rejectProjectEdit(projectId);
+      toast.info("Edit request rejected.");
+      await refreshData();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to reject edit");
+    } finally {
+      setSavingProjectId(null);
+    }
   }
 
   async function onSaveMentor(projectId: string) {
@@ -397,13 +433,31 @@ export default function AdminProjectsPage() {
             const selectedMember = memberDraft[project.id] ?? "";
             const selectedMemberRole = memberRoleDraft[project.id] ?? "MEMBER";
             const isSaving = savingProjectId === project.id;
+            const pendingEdits = project.pendingEditData;
 
             return (
-              <Card key={project.id}>
+              <Card
+                key={project.id}
+                className={
+                  project.hasPendingEdit
+                    ? "border-amber-500/50 shadow-sm shadow-amber-500/10"
+                    : ""
+                }
+              >
                 <CardHeader className="pb-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <CardTitle className="text-lg">{project.title}</CardTitle>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        {project.title}
+                        {project.hasPendingEdit && (
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs"
+                          >
+                            Review Required
+                          </Badge>
+                        )}
+                      </CardTitle>
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-sm text-muted-foreground">
                           {project.domain}
@@ -486,7 +540,7 @@ export default function AdminProjectsPage() {
                                   value={editDept}
                                   onValueChange={(val) => {
                                     setEditDept(val);
-                                    setEditDomain(""); // Reset domain on department change
+                                    setEditDomain("");
                                   }}
                                 >
                                   <SelectTrigger>
@@ -610,6 +664,60 @@ export default function AdminProjectsPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-5">
+                  {/* --- Pending Edit Review Block --- */}
+                  {project.hasPendingEdit && pendingEdits && (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+                      <h4 className="text-sm font-semibold text-amber-600 flex items-center gap-2">
+                        Proposed Changes
+                      </h4>
+                      <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Title:</span>{" "}
+                          {pendingEdits.title}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Domain:</span>{" "}
+                          {pendingEdits.domain}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Dept:</span>{" "}
+                          {pendingEdits.department}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Size:</span>{" "}
+                          {pendingEdits.maxGroupSize}
+                        </div>
+                        <div
+                          className="sm:col-span-2 line-clamp-2"
+                          title={pendingEdits.description}
+                        >
+                          <span className="text-muted-foreground">Desc:</span>{" "}
+                          {pendingEdits.description}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          onClick={() => onApproveEdit(project.id)}
+                          disabled={isSaving}
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" /> Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onRejectEdit(project.id)}
+                          disabled={isSaving}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <XCircle className="w-4 h-4 mr-2" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {/* --------------------------------- */}
+
                   <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                     <div className="space-y-1.5">
                       <Label>Mentor</Label>
