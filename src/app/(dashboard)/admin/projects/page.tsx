@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -40,6 +40,98 @@ import {
 } from "@/hooks/usePublications";
 import { AdminPublicationsList } from "@/components/dashboard/AdminPublicationsList";
 
+// --- Shared Constants (Should ideally be extracted to a shared utilities file) ---
+const DEPARTMENTS = [
+  "B.E. Computer Engineering",
+  "B.E. Information Technology",
+  "B.E. Electronics & Tele-Communication",
+  "B.E - Electronics and Computer Science",
+  "B.E - Mechanical Engineering",
+  "B.E. Civil Engineering",
+  "B.E. Computer Science and Engineering (Cyber Security)",
+  "B.E. Mechanical and Mechatronics Engineering (Additive Manufacturing)",
+  "B.Tech – Artificial Intelligence & Machine Learning",
+  "B.Tech – Artificial Intelligence & Data Science",
+  "B.Tech – Internet of Things (IoT)",
+  "B.Tech – Computer Science & Engineering (CSE-IOT)",
+] as const;
+
+const CE_DOMAINS = [
+  "Communication Networking and Web Engineering",
+  "Computing and System Design",
+  "Intelligent System Design and Development",
+  "Multimedia Design and Development",
+  "Software Development & Information System Management",
+];
+
+const DEPARTMENT_DOMAINS: Record<string, string[]> = {
+  "B.E. Computer Engineering": CE_DOMAINS,
+  "B.E. Computer Science and Engineering (Cyber Security)": CE_DOMAINS,
+  "B.Tech – Computer Science & Engineering (CSE-IOT)": CE_DOMAINS,
+  "B.E - Mechanical Engineering": [
+    "Manufacturing",
+    "Thermal Design",
+    "Automation",
+  ],
+  "B.E. Civil Engineering": [
+    "Construction Management",
+    "Environment Engineering",
+    "Geotechnical Engineering",
+    "Structural Engineering",
+    "Transportation Engineering",
+    "Water Resource Engineering",
+  ],
+  "B.E. Information Technology": [
+    "Information and communication Technology",
+    "Software Product Development",
+    "Artificial Intellignece & Machine Learning",
+    "Web Technology and Ecommerce",
+    "Database Technology",
+  ],
+  "B.Tech – Artificial Intelligence & Machine Learning": [
+    "Health Care",
+    "Agritech",
+    "Security",
+    "Gaming",
+    "Social Benefits",
+  ],
+  "B.Tech – Internet of Things (IoT)": [
+    "Embedded System & Hardware Design",
+    "IoT Networking & Communication Technologies",
+    "IoT Security & Privacy",
+    "Data Management and Analytics",
+    "IoT Application & Integration",
+  ],
+  "B.Tech – Artificial Intelligence & Data Science": [
+    "AgriTech",
+    "Education Entertainment & Hospitality",
+    "Life Science & Pharmaceuticals",
+    "Manufacturing, Retail and E-commerce",
+    "FinTech",
+  ],
+  "B.E. Mechanical and Mechatronics Engineering (Additive Manufacturing)": [
+    "Automation",
+    "Advanced Manufacturing",
+    "Electro Mechanical",
+    "Mechanical Design",
+  ],
+  "B.E - Electronics and Computer Science": [
+    "Digital Systems and Communication",
+    "Embedded Systems and IoT",
+    "Software Engineering and Systems",
+    "Intelligent Systems and Data Science",
+    "Cybersecurity and Networking",
+  ],
+  "B.E. Electronics & Tele-Communication": [
+    "Advance Communication",
+    "Signal Processing",
+    "EDM",
+    "Embedded/IoT",
+    "IT",
+  ],
+};
+// -----------------------------------------------------------------------------
+
 type StatusValue =
   | "DRAFT"
   | "ACTIVE"
@@ -57,22 +149,21 @@ function toDateInputValue(value?: string | Date | null) {
 
 export default function AdminProjectsPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = React.useState("");
-  const [savingProjectId, setSavingProjectId] = React.useState<string | null>(
-    null,
-  );
-  const [editingProject, setEditingProject] = React.useState<any | null>(null);
-  const [publicationsOpen, setPublicationsOpen] = React.useState(false);
-  const [mentorDraft, setMentorDraft] = React.useState<Record<string, string>>(
-    {},
-  );
-  const [memberDraft, setMemberDraft] = React.useState<Record<string, string>>(
-    {},
-  );
-  const [memberRoleDraft, setMemberRoleDraft] = React.useState<
+  const [search, setSearch] = useState("");
+  const [savingProjectId, setSavingProjectId] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<any | null>(null);
+  const [publicationsOpen, setPublicationsOpen] = useState(false);
+  const [mentorDraft, setMentorDraft] = useState<Record<string, string>>({});
+  const [memberDraft, setMemberDraft] = useState<Record<string, string>>({});
+  const [memberRoleDraft, setMemberRoleDraft] = useState<
     Record<string, RoleValue>
   >({});
-  const [mounted, setMounted] = React.useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // States specifically for the editing dialog to handle dependent dropdowns natively
+  const [editDept, setEditDept] = useState<string>("");
+  const [editDomain, setEditDomain] = useState<string>("");
+
   const searchParams = useSearchParams();
 
   const { data, isLoading } = useQuery({
@@ -91,7 +182,7 @@ export default function AdminProjectsPage() {
   const students = data?.students ?? [];
   const pendingLabel = pendingCount > 99 ? "99+" : String(pendingCount);
 
-  const filteredProjects = React.useMemo(() => {
+  const filteredProjects = useMemo(() => {
     if (!search.trim()) return projects;
     const q = search.toLowerCase();
     return projects.filter(
@@ -103,16 +194,21 @@ export default function AdminProjectsPage() {
     );
   }, [projects, search]);
 
-  React.useEffect(() => {
+  const availableEditDomains = editDept
+    ? DEPARTMENT_DOMAINS[editDept] || CE_DOMAINS
+    : [];
+
+  useEffect(() => {
     const target = searchParams.get("publications");
     if (target) {
       setPublicationsOpen(true);
     }
   }, [searchParams]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setMounted(true);
   }, []);
+
   if (!mounted) return null;
 
   async function refreshData() {
@@ -230,7 +326,7 @@ export default function AdminProjectsPage() {
         maxGroupSize: Number(formData.get("maxGroupSize") || 4),
         startDate: String(formData.get("startDate") || ""),
         endDate: String(formData.get("endDate") || ""),
-      } as any); // Type assertion used here assuming backend schema supports department
+      } as any);
       toast.success("Project updated");
       setEditingProject(null);
       await refreshData();
@@ -336,9 +432,15 @@ export default function AdminProjectsPage() {
                       </Button>
                       <Dialog
                         open={editingProject?.id === project.id}
-                        onOpenChange={(open) =>
-                          setEditingProject(open ? project : null)
-                        }
+                        onOpenChange={(open) => {
+                          if (open) {
+                            setEditingProject(project);
+                            setEditDept(project.department || "");
+                            setEditDomain(project.domain || "");
+                          } else {
+                            setEditingProject(null);
+                          }
+                        }}
                       >
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
@@ -374,24 +476,60 @@ export default function AdminProjectsPage() {
                                 minLength={10}
                               />
                             </div>
+
+                            {/* --- Integrated Dependent Dropdowns --- */}
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-1.5">
-                                <Label>Domain</Label>
-                                <Input
-                                  name="domain"
-                                  defaultValue={project.domain}
-                                  required
-                                />
+                                <Label>Department</Label>
+                                <Select
+                                  name="department"
+                                  value={editDept}
+                                  onValueChange={(val) => {
+                                    setEditDept(val);
+                                    setEditDomain(""); // Reset domain on department change
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select Department..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DEPARTMENTS.map((dept) => (
+                                      <SelectItem key={dept} value={dept}>
+                                        {dept}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                               <div className="space-y-1.5">
-                                <Label>Department</Label>
-                                <Input
-                                  name="department"
-                                  defaultValue={project.department}
-                                  required
-                                />
+                                <Label>Domain</Label>
+                                <Select
+                                  name="domain"
+                                  value={editDomain}
+                                  onValueChange={setEditDomain}
+                                  disabled={!editDept}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue
+                                      placeholder={
+                                        editDept
+                                          ? "Select Domain..."
+                                          : "Select Department First"
+                                      }
+                                    />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availableEditDomains.map((domain) => (
+                                      <SelectItem key={domain} value={domain}>
+                                        {domain}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </div>
+                            {/* -------------------------------------- */}
+
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-1.5">
                                 <Label>Start Date</Label>
