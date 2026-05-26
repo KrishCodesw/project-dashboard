@@ -1,13 +1,24 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { FolderKanban, ListChecks, Clock, TrendingUp } from "lucide-react";
-import { useStudentDashboardStats, useStudentProjects } from "@/hooks/useProjects";
+import {
+  FolderKanban,
+  ListChecks,
+  Clock,
+  TrendingUp,
+  Presentation,
+} from "lucide-react";
+import {
+  useStudentDashboardStats,
+  useStudentProjects,
+} from "@/hooks/useProjects";
 import { useStudentTasks } from "@/hooks/useTasks";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ProjectCard } from "@/components/dashboard/ProjectCard";
 import { MilestoneTimeline } from "@/components/dashboard/MilestoneTimeline";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type StudentDashboardClientProps = {
@@ -28,26 +39,47 @@ export default function StudentDashboardClient({
   userId,
   userName,
 }: StudentDashboardClientProps) {
-  const { data: stats, isLoading: statsLoading } = useStudentDashboardStats(userId);
-  const { data: projects, isLoading: projectsLoading } = useStudentProjects(userId);
+  const { data: stats, isLoading: statsLoading } =
+    useStudentDashboardStats(userId);
+  const { data: projects, isLoading: projectsLoading } =
+    useStudentProjects(userId);
   const { data: tasks } = useStudentTasks(userId);
 
   const greeting = getGreeting();
 
   const upcomingMilestones = (projects ?? []).flatMap((p: any) =>
-    (p.milestones ?? []).filter((m: any) => !m.isCompleted)
+    (p.milestones ?? []).filter((m: any) => !m.isCompleted),
   );
 
   return (
     <div className="space-y-8">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-3xl font-bold">
-          {greeting}, {userName.split(" ")[0]} 👋
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Track your projects and tasks
-        </p>
-      </motion.div>
+      {/* Greeting & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h1 className="text-3xl font-bold">
+            {greeting}, {userName.split(" ")[0]} 👋
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Track your projects and tasks
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Link href="/showcase">
+            <Button className="w-full sm:w-auto flex items-center gap-2 shadow-sm">
+              <Presentation className="h-4 w-4" />
+              Go to Showcase
+            </Button>
+          </Link>
+        </motion.div>
+      </div>
 
       {/* Stats */}
       <motion.div

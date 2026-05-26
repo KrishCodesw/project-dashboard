@@ -5,7 +5,15 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { getUsers } from "@/server/actions/users";
-import { Users, GraduationCap, BookOpen, Shield, ArrowRight, Sparkles } from "lucide-react";
+import {
+  Users,
+  GraduationCap,
+  BookOpen,
+  Shield,
+  ArrowRight,
+  Sparkles,
+  Presentation,
+} from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -37,13 +45,33 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="space-y-8">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-bold">Admin Overview</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          System-wide statistics and management
-        </p>
-      </motion.div>
+      {/* Header & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h1 className="text-3xl font-bold">Admin Overview</h1>
+          <p className="text-muted-foreground mt-1">
+            System-wide statistics and management
+          </p>
+        </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Link href="/showcase">
+            <Button className="w-full sm:w-auto flex items-center gap-2 shadow-sm">
+              <Presentation className="h-4 w-4" />
+              Go to Showcase
+            </Button>
+          </Link>
+        </motion.div>
+      </div>
+
+      {/* Admin Module Cards */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -52,7 +80,9 @@ export default function AdminOverviewPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">New Module</p>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              New Module
+            </p>
             <h3 className="mt-1 flex items-center gap-2 text-lg font-semibold">
               <Sparkles className="h-5 w-5 text-primary" />
               Showcase System
@@ -78,10 +108,15 @@ export default function AdminOverviewPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Bulk Assignment</p>
-            <h3 className="mt-1 text-lg font-semibold">CSV Project Assignment Upload</h3>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              Bulk Assignment
+            </p>
+            <h3 className="mt-1 text-lg font-semibold">
+              CSV Project Assignment Upload
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Assign users to projects via CSV and queue all notification emails asynchronously.
+              Assign users to projects via CSV and queue all notification emails
+              asynchronously.
             </p>
           </div>
           <Link href="/admin/project-assignments">
@@ -101,10 +136,15 @@ export default function AdminOverviewPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Project Control</p>
-            <h3 className="mt-1 text-lg font-semibold">Manage Projects, Mentors, and Members</h3>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              Project Control
+            </p>
+            <h3 className="mt-1 text-lg font-semibold">
+              Manage Projects, Mentors, and Members
+            </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Edit any project, assign or change mentor, and manage member roles from one place.
+              Edit any project, assign or change mentor, and manage member roles
+              from one place.
             </p>
           </div>
           <Link href="/admin/projects">
@@ -116,6 +156,7 @@ export default function AdminOverviewPage() {
         </div>
       </motion.div>
 
+      {/* User Stats */}
       <motion.div
         variants={container}
         initial="hidden"
@@ -129,16 +170,36 @@ export default function AdminOverviewPage() {
         ) : (
           <>
             <motion.div variants={item}>
-              <StatCard title="Total Users" value={stats.total} icon={Users} color="indigo" />
+              <StatCard
+                title="Total Users"
+                value={stats.total}
+                icon={Users}
+                color="indigo"
+              />
             </motion.div>
             <motion.div variants={item}>
-              <StatCard title="Students" value={stats.students} icon={GraduationCap} color="violet" />
+              <StatCard
+                title="Students"
+                value={stats.students}
+                icon={GraduationCap}
+                color="violet"
+              />
             </motion.div>
             <motion.div variants={item}>
-              <StatCard title="Teachers" value={stats.teachers} icon={BookOpen} color="emerald" />
+              <StatCard
+                title="Teachers"
+                value={stats.teachers}
+                icon={BookOpen}
+                color="emerald"
+              />
             </motion.div>
             <motion.div variants={item}>
-              <StatCard title="Admins" value={stats.admins} icon={Shield} color="amber" />
+              <StatCard
+                title="Admins"
+                value={stats.admins}
+                icon={Shield}
+                color="amber"
+              />
             </motion.div>
           </>
         )}
@@ -162,10 +223,15 @@ export default function AdminOverviewPage() {
                 </div>
               ))
             : (users ?? []).slice(0, 10).map((user: any) => (
-                <div key={user.id} className="flex items-center justify-between p-4 text-sm">
+                <div
+                  key={user.id}
+                  className="flex items-center justify-between p-4 text-sm"
+                >
                   <div>
                     <p className="font-medium">{user.name}</p>
-                    <p className="text-muted-foreground text-xs">{user.email}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {user.email}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span
@@ -173,8 +239,8 @@ export default function AdminOverviewPage() {
                         user.role === "ADMIN"
                           ? "bg-amber-500/20 text-amber-400"
                           : user.role === "TEACHER"
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : "bg-indigo-500/20 text-indigo-400"
+                            ? "bg-emerald-500/20 text-emerald-400"
+                            : "bg-indigo-500/20 text-indigo-400"
                       }`}
                     >
                       {user.role}
@@ -192,3 +258,4 @@ export default function AdminOverviewPage() {
     </div>
   );
 }
+
