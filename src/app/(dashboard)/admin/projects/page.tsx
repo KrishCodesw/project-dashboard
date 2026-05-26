@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,8 +11,18 @@ import {
   adminUpdateProjectMemberRole,
   adminRemoveProjectMember,
   adminDeleteProject,
+  approveProjectEdit,
+  rejectProjectEdit,
 } from "@/server/actions/projects";
-import { Trash, Loader2, Pencil, UserPlus, UserX } from "lucide-react";
+import {
+  Trash,
+  Loader2,
+  Pencil,
+  UserPlus,
+  UserX,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +50,98 @@ import {
 } from "@/hooks/usePublications";
 import { AdminPublicationsList } from "@/components/dashboard/AdminPublicationsList";
 
+// --- Shared Constants ---
+const DEPARTMENTS = [
+  "B.E. Computer Engineering",
+  "B.E. Information Technology",
+  "B.E. Electronics & Tele-Communication",
+  "B.E - Electronics and Computer Science",
+  "B.E - Mechanical Engineering",
+  "B.E. Civil Engineering",
+  "B.E. Computer Science and Engineering (Cyber Security)",
+  "B.E. Mechanical and Mechatronics Engineering (Additive Manufacturing)",
+  "B.Tech – Artificial Intelligence & Machine Learning",
+  "B.Tech – Artificial Intelligence & Data Science",
+  "B.Tech – Internet of Things (IoT)",
+  "B.Tech – Computer Science & Engineering (CSE-IOT)",
+] as const;
+
+const CE_DOMAINS = [
+  "Communication Networking and Web Engineering",
+  "Computing and System Design",
+  "Intelligent System Design and Development",
+  "Multimedia Design and Development",
+  "Software Development & Information System Management",
+];
+
+const DEPARTMENT_DOMAINS: Record<string, string[]> = {
+  "B.E. Computer Engineering": CE_DOMAINS,
+  "B.E. Computer Science and Engineering (Cyber Security)": CE_DOMAINS,
+  "B.Tech – Computer Science & Engineering (CSE-IOT)": CE_DOMAINS,
+  "B.E - Mechanical Engineering": [
+    "Manufacturing",
+    "Thermal Design",
+    "Automation",
+  ],
+  "B.E. Civil Engineering": [
+    "Construction Management",
+    "Environment Engineering",
+    "Geotechnical Engineering",
+    "Structural Engineering",
+    "Transportation Engineering",
+    "Water Resource Engineering",
+  ],
+  "B.E. Information Technology": [
+    "Information and communication Technology",
+    "Software Product Development",
+    "Artificial Intellignece & Machine Learning",
+    "Web Technology and Ecommerce",
+    "Database Technology",
+  ],
+  "B.Tech – Artificial Intelligence & Machine Learning": [
+    "Health Care",
+    "Agritech",
+    "Security",
+    "Gaming",
+    "Social Benefits",
+  ],
+  "B.Tech – Internet of Things (IoT)": [
+    "Embedded System & Hardware Design",
+    "IoT Networking & Communication Technologies",
+    "IoT Security & Privacy",
+    "Data Management and Analytics",
+    "IoT Application & Integration",
+  ],
+  "B.Tech – Artificial Intelligence & Data Science": [
+    "AgriTech",
+    "Education Entertainment & Hospitality",
+    "Life Science & Pharmaceuticals",
+    "Manufacturing, Retail and E-commerce",
+    "FinTech",
+  ],
+  "B.E. Mechanical and Mechatronics Engineering (Additive Manufacturing)": [
+    "Automation",
+    "Advanced Manufacturing",
+    "Electro Mechanical",
+    "Mechanical Design",
+  ],
+  "B.E - Electronics and Computer Science": [
+    "Digital Systems and Communication",
+    "Embedded Systems and IoT",
+    "Software Engineering and Systems",
+    "Intelligent Systems and Data Science",
+    "Cybersecurity and Networking",
+  ],
+  "B.E. Electronics & Tele-Communication": [
+    "Advance Communication",
+    "Signal Processing",
+    "EDM",
+    "Embedded/IoT",
+    "IT",
+  ],
+};
+// -----------------------------------------------------------------------------
+
 type StatusValue =
   | "DRAFT"
   | "ACTIVE"
@@ -57,22 +159,21 @@ function toDateInputValue(value?: string | Date | null) {
 
 export default function AdminProjectsPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = React.useState("");
-  const [savingProjectId, setSavingProjectId] = React.useState<string | null>(
-    null,
-  );
-  const [editingProject, setEditingProject] = React.useState<any | null>(null);
-  const [publicationsOpen, setPublicationsOpen] = React.useState(false);
-  const [mentorDraft, setMentorDraft] = React.useState<Record<string, string>>(
-    {},
-  );
-  const [memberDraft, setMemberDraft] = React.useState<Record<string, string>>(
-    {},
-  );
-  const [memberRoleDraft, setMemberRoleDraft] = React.useState<
+  const [search, setSearch] = useState("");
+  const [savingProjectId, setSavingProjectId] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<any | null>(null);
+  const [publicationsOpen, setPublicationsOpen] = useState(false);
+  const [mentorDraft, setMentorDraft] = useState<Record<string, string>>({});
+  const [memberDraft, setMemberDraft] = useState<Record<string, string>>({});
+  const [memberRoleDraft, setMemberRoleDraft] = useState<
     Record<string, RoleValue>
   >({});
-  const [mounted, setMounted] = React.useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // States specifically for the editing dialog to handle dependent dropdowns natively
+  const [editDept, setEditDept] = useState<string>("");
+  const [editDomain, setEditDomain] = useState<string>("");
+
   const searchParams = useSearchParams();
 
   const { data, isLoading } = useQuery({
@@ -91,7 +192,7 @@ export default function AdminProjectsPage() {
   const students = data?.students ?? [];
   const pendingLabel = pendingCount > 99 ? "99+" : String(pendingCount);
 
-  const filteredProjects = React.useMemo(() => {
+  const filteredProjects = useMemo(() => {
     if (!search.trim()) return projects;
     const q = search.toLowerCase();
     return projects.filter(
@@ -103,22 +204,53 @@ export default function AdminProjectsPage() {
     );
   }, [projects, search]);
 
-  React.useEffect(() => {
+  const availableEditDomains = editDept
+    ? DEPARTMENT_DOMAINS[editDept] || CE_DOMAINS
+    : [];
+
+  useEffect(() => {
     const target = searchParams.get("publications");
     if (target) {
       setPublicationsOpen(true);
     }
   }, [searchParams]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setMounted(true);
   }, []);
+
   if (!mounted) return null;
 
   async function refreshData() {
     await queryClient.invalidateQueries({
       queryKey: ["admin", "projects", "manage"],
     });
+  }
+
+  async function onApproveEdit(projectId: string) {
+    setSavingProjectId(projectId);
+    try {
+      await approveProjectEdit(projectId);
+      toast.success("Edit request approved and applied.");
+      await refreshData();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve edit");
+    } finally {
+      setSavingProjectId(null);
+    }
+  }
+
+  async function onRejectEdit(projectId: string) {
+    setSavingProjectId(projectId);
+    try {
+      await rejectProjectEdit(projectId);
+      toast.info("Edit request rejected.");
+      await refreshData();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to reject edit");
+    } finally {
+      setSavingProjectId(null);
+    }
   }
 
   async function onSaveMentor(projectId: string) {
@@ -230,7 +362,7 @@ export default function AdminProjectsPage() {
         maxGroupSize: Number(formData.get("maxGroupSize") || 4),
         startDate: String(formData.get("startDate") || ""),
         endDate: String(formData.get("endDate") || ""),
-      } as any); // Type assertion used here assuming backend schema supports department
+      } as any);
       toast.success("Project updated");
       setEditingProject(null);
       await refreshData();
@@ -301,13 +433,31 @@ export default function AdminProjectsPage() {
             const selectedMember = memberDraft[project.id] ?? "";
             const selectedMemberRole = memberRoleDraft[project.id] ?? "MEMBER";
             const isSaving = savingProjectId === project.id;
+            const pendingEdits = project.pendingEditData;
 
             return (
-              <Card key={project.id}>
+              <Card
+                key={project.id}
+                className={
+                  project.hasPendingEdit
+                    ? "border-amber-500/50 shadow-sm shadow-amber-500/10"
+                    : ""
+                }
+              >
                 <CardHeader className="pb-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <CardTitle className="text-lg">{project.title}</CardTitle>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        {project.title}
+                        {project.hasPendingEdit && (
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs"
+                          >
+                            Review Required
+                          </Badge>
+                        )}
+                      </CardTitle>
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-sm text-muted-foreground">
                           {project.domain}
@@ -336,9 +486,15 @@ export default function AdminProjectsPage() {
                       </Button>
                       <Dialog
                         open={editingProject?.id === project.id}
-                        onOpenChange={(open) =>
-                          setEditingProject(open ? project : null)
-                        }
+                        onOpenChange={(open) => {
+                          if (open) {
+                            setEditingProject(project);
+                            setEditDept(project.department || "");
+                            setEditDomain(project.domain || "");
+                          } else {
+                            setEditingProject(null);
+                          }
+                        }}
                       >
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm">
@@ -374,24 +530,60 @@ export default function AdminProjectsPage() {
                                 minLength={10}
                               />
                             </div>
+
+                            {/* --- Integrated Dependent Dropdowns --- */}
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-1.5">
-                                <Label>Domain</Label>
-                                <Input
-                                  name="domain"
-                                  defaultValue={project.domain}
-                                  required
-                                />
+                                <Label>Department</Label>
+                                <Select
+                                  name="department"
+                                  value={editDept}
+                                  onValueChange={(val) => {
+                                    setEditDept(val);
+                                    setEditDomain("");
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select Department..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DEPARTMENTS.map((dept) => (
+                                      <SelectItem key={dept} value={dept}>
+                                        {dept}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                               <div className="space-y-1.5">
-                                <Label>Department</Label>
-                                <Input
-                                  name="department"
-                                  defaultValue={project.department}
-                                  required
-                                />
+                                <Label>Domain</Label>
+                                <Select
+                                  name="domain"
+                                  value={editDomain}
+                                  onValueChange={setEditDomain}
+                                  disabled={!editDept}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue
+                                      placeholder={
+                                        editDept
+                                          ? "Select Domain..."
+                                          : "Select Department First"
+                                      }
+                                    />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {availableEditDomains.map((domain) => (
+                                      <SelectItem key={domain} value={domain}>
+                                        {domain}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </div>
+                            {/* -------------------------------------- */}
+
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-1.5">
                                 <Label>Start Date</Label>
@@ -472,6 +664,60 @@ export default function AdminProjectsPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-5">
+                  {/* --- Pending Edit Review Block --- */}
+                  {project.hasPendingEdit && pendingEdits && (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-3">
+                      <h4 className="text-sm font-semibold text-amber-600 flex items-center gap-2">
+                        Proposed Changes
+                      </h4>
+                      <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Title:</span>{" "}
+                          {pendingEdits.title}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Domain:</span>{" "}
+                          {pendingEdits.domain}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Dept:</span>{" "}
+                          {pendingEdits.department}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Size:</span>{" "}
+                          {pendingEdits.maxGroupSize}
+                        </div>
+                        <div
+                          className="sm:col-span-2 line-clamp-2"
+                          title={pendingEdits.description}
+                        >
+                          <span className="text-muted-foreground">Desc:</span>{" "}
+                          {pendingEdits.description}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          onClick={() => onApproveEdit(project.id)}
+                          disabled={isSaving}
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" /> Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onRejectEdit(project.id)}
+                          disabled={isSaving}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <XCircle className="w-4 h-4 mr-2" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {/* --------------------------------- */}
+
                   <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                     <div className="space-y-1.5">
                       <Label>Mentor</Label>

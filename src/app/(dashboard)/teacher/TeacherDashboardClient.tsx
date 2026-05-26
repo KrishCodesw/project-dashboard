@@ -1,11 +1,13 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { FolderKanban, CheckCircle2, Clock, ClipboardCheck } from "lucide-react";
+import { FolderKanban, CheckCircle2, Clock, ClipboardCheck, Presentation } from "lucide-react";
 import { useTeacherDashboardStats, useTeacherProjects } from "@/hooks/useProjects";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ProjectCard } from "@/components/dashboard/ProjectCard";
+import { Button } from "@/components/ui/button";
 import { ProjectCompletionChart } from "@/components/charts/ProjectCompletionChart";
 import { TaskDistributionDonut } from "@/components/charts/TaskDistributionDonut";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,15 +41,30 @@ export default function TeacherDashboardClient({
 
   return (
     <div className="space-y-8">
-      {/* Greeting */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-3xl font-bold">
-          {greeting}, {userName.split(" ")[0]} 👋
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Here&apos;s what&apos;s happening with your projects today.
-        </p>
-      </motion.div>
+      {/* Greeting & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <h1 className="text-3xl font-bold">
+            {greeting}, {userName.split(" ")[0]} 👋
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Here&apos;s what&apos;s happening with your projects today.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Link href="/showcase">
+            <Button className="w-full sm:w-auto flex items-center gap-2 shadow-sm">
+              <Presentation className="h-4 w-4" />
+              Go to Showcase
+            </Button>
+          </Link>
+        </motion.div>
+      </div>
 
       {/* Stats */}
       <motion.div
