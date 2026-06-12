@@ -66,23 +66,18 @@ export function ProjectCard({ project, href }: ProjectCardProps) {
   return (
     <Link href={href}>
       <motion.div
-        whileHover={{
-          scale: 1.02,
-          boxShadow: "0 0 30px rgba(99, 102, 241, 0.08)",
-        }}
-        whileTap={{ scale: 0.98 }}
-        className="group cursor-pointer rounded-xl border bg-card p-5 shadow-sm transition-all hover:border-primary/20"
+        className="group cursor-pointer rounded-[2px] border border-border bg-card p-5 shadow-none transition-all duration-200 ease-[0.23,1,0.32,1] hover:scale-[0.99] hover:border-primary active:scale-[0.97]"
       >
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <Badge variant={statusColors[status] as any}>
+              <Badge variant={statusColors[status] as any} className="rounded-[2px] font-mono text-[9px] uppercase tracking-wider">
                 {status.replace("_", " ")}
               </Badge>
               {isRblProject && (
                 <Badge
                   variant="secondary"
-                  className="bg-indigo-100 text-indigo-800 hover:bg-indigo-200 border-none dark:bg-indigo-900/30 dark:text-indigo-300"
+                  className="rounded-[2px] font-mono text-[9px] uppercase tracking-wider border border-border bg-muted text-foreground"
                 >
                   RBL Project
                 </Badge>
@@ -90,16 +85,16 @@ export function ProjectCard({ project, href }: ProjectCardProps) {
               {groupNo && (
                 <Badge
                   variant="outline"
-                  className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
+                  className="rounded-[2px] font-mono text-[9px] uppercase tracking-wider text-muted-foreground"
                 >
                   {groupNo}
                 </Badge>
               )}
             </div>
-            <h3 className="text-lg font-semibold truncate group-hover:text-primary transition-colors">
+            <h3 className="text-lg font-sans font-medium tracking-tight truncate group-hover:text-primary transition-colors">
               {title}
             </h3>
-            <p className="text-sm text-muted-foreground mt-1 truncate">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground mt-1 truncate">
               {domain}
             </p>
           </div>
@@ -113,36 +108,24 @@ export function ProjectCard({ project, href }: ProjectCardProps) {
                 r="36"
                 fill="none"
                 stroke="hsl(var(--muted))"
-                strokeWidth="5"
+                strokeWidth="4"
               />
               <motion.circle
                 cx="40"
                 cy="40"
                 r="36"
                 fill="none"
-                stroke="url(#gradient)"
-                strokeWidth="5"
-                strokeLinecap="round"
+                stroke="hsl(var(--primary))"
+                strokeWidth="4"
+                strokeLinecap="square"
                 strokeDasharray={circumference}
                 initial={{ strokeDashoffset: circumference }}
                 animate={{ strokeDashoffset }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
+                transition={{ duration: 1.2, ease: [0.23, 1, 0.32, 1] }}
               />
-              <defs>
-                <linearGradient
-                  id="gradient"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="100%"
-                >
-                  <stop offset="0%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#8b5cf6" />
-                </linearGradient>
-              </defs>
             </svg>
             <div className="absolute text-center">
-              <span className="text-sm font-bold">
+              <span className="text-[11px] font-mono tracking-wider font-bold text-foreground">
                 {Math.round(completionPercentage)}%
               </span>
             </div>
@@ -176,8 +159,8 @@ export function ProjectCard({ project, href }: ProjectCardProps) {
           <div className="flex items-center gap-1.5">
             <div className="flex -space-x-2">
               {members.slice(0, 3).map((m, i) => (
-                <Avatar key={i} className="h-6 w-6 border-2 border-card">
-                  <AvatarFallback className="text-[10px] bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
+                <Avatar key={i} className="h-6 w-6 rounded-[2px] border border-card">
+                  <AvatarFallback className="text-[9px] font-mono tracking-wider bg-muted text-foreground rounded-[2px]">
                     {m.name
                       .split(" ")
                       .map((n: string) => n[0])
@@ -186,7 +169,7 @@ export function ProjectCard({ project, href }: ProjectCardProps) {
                 </Avatar>
               ))}
               {members.length > 3 && (
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-medium border-2 border-card">
+                <div className="flex h-6 w-6 items-center justify-center rounded-[2px] bg-muted text-[9px] font-mono tracking-wider border border-card text-foreground">
                   +{members.length - 3}
                 </div>
               )}

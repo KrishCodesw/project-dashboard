@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/store/ui.store";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -22,7 +23,12 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
@@ -36,8 +42,16 @@ const adminNav: NavItem[] = [
   { title: "Overview", href: "/admin", icon: LayoutDashboard },
   { title: "Projects", href: "/admin/projects", icon: FolderKanban },
   { title: "Users", href: "/admin/users", icon: Users },
-  { title: "Teacher Approvals", href: "/admin/teacher-approvals", icon: UserCheck },
-  { title: "Project Assignments", href: "/admin/project-assignments", icon: Upload },
+  {
+    title: "Teacher Approvals",
+    href: "/admin/teacher-approvals",
+    icon: UserCheck,
+  },
+  {
+    title: "Project Assignments",
+    href: "/admin/project-assignments",
+    icon: Upload,
+  },
   { title: "Email Logs", href: "/admin/email-logs", icon: Mail },
   { title: "Showcase", href: "/admin/showcase", icon: Sparkles },
   { title: "Settings", href: "/admin/settings", icon: Settings },
@@ -65,17 +79,38 @@ interface SidebarProps {
 export function Sidebar({ role, userName }: SidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Hydration fix for useMediaQuery
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
   const navItems =
     role === "ADMIN" ? adminNav : role === "TEACHER" ? teacherNav : studentNav;
 
   const roleLabel =
-    role === "ADMIN" ? "Administrator" : role === "TEACHER" ? "Teacher" : "Student";
+    role === "ADMIN"
+      ? "Administrator"
+      : role === "TEACHER"
+        ? "Teacher"
+        : "Student";
+
+  const getSidebarWidth = () => {
+    if (!mounted) return 240;
+    if (isMobile) return sidebarCollapsed ? 0 : "100%";
+    return sidebarCollapsed ? 64 : 240;
+  };
+
+  const getSidebarX = () => {
+    if (!mounted) return 0;
+    if (isMobile) return sidebarCollapsed ? "-100%" : 0;
+    return 0;
+  };
 
   return (
     <TooltipProvider delayDuration={0}>
       <motion.aside
-        animate={{ width: sidebarCollapsed ? 64 : 240 }}
+        animate={{ width: getSidebarWidth(), x: getSidebarX() }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         className="fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-background"
       >
@@ -89,10 +124,12 @@ export function Sidebar({ role, userName }: SidebarProps) {
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-2"
               >
-                <div className="flex h-6 w-6 items-center justify-center border border-foreground/20 rounded-[2px] transition-transform duration-200 hover:scale-105 active:scale-95">
+                {/* <div className="flex h-6 w-6 items-center justify-center border border-foreground/20 rounded-[2px] transition-transform duration-200 hover:scale-105 active:scale-95">
                   <div className="h-2 w-2 bg-foreground rounded-[1px]" />
-                </div>
-                <span className="font-serif text-lg tracking-tight">SUPERDESIGN</span>
+                </div> */}
+                <span className="font-serif text-lg tracking-tight">
+                  TCET's Project Dashboard
+                </span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -119,11 +156,16 @@ export function Sidebar({ role, userName }: SidebarProps) {
                   isActive
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  sidebarCollapsed && "justify-center px-2"
+                  sidebarCollapsed && "justify-center px-2",
                 )}
               >
                 <item.icon
-                  className={cn("h-4 w-4 shrink-0 transition-colors duration-200", isActive ? "text-primary-foreground" : "text-muted-foreground")}
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-colors duration-200",
+                    isActive
+                      ? "text-primary-foreground"
+                      : "text-muted-foreground",
+                  )}
                 />
                 <AnimatePresence mode="wait">
                   {!sidebarCollapsed && (
@@ -145,7 +187,11 @@ export function Sidebar({ role, userName }: SidebarProps) {
                 {sidebarCollapsed ? (
                   <Tooltip>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                    <TooltipContent side="right" sideOffset={10} className="font-mono text-[10px] uppercase tracking-wider rounded-[2px] bg-foreground text-background">
+                    <TooltipContent
+                      side="right"
+                      sideOffset={10}
+                      className="font-mono text-[10px] uppercase tracking-wider rounded-[2px] bg-foreground text-background"
+                    >
                       {item.title}
                     </TooltipContent>
                   </Tooltip>
@@ -161,8 +207,12 @@ export function Sidebar({ role, userName }: SidebarProps) {
         <div className="p-3 space-y-1 border-t border-border bg-muted/30">
           {!sidebarCollapsed && (
             <div className="px-3 py-2 mb-2">
-              <p className="text-sm font-sans font-medium truncate">{userName}</p>
-              <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{roleLabel}</p>
+              <p className="text-sm font-sans font-medium truncate">
+                {userName}
+              </p>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                {roleLabel}
+              </p>
             </div>
           )}
           <Tooltip>
@@ -172,19 +222,31 @@ export function Sidebar({ role, userName }: SidebarProps) {
                 size={sidebarCollapsed ? "icon" : "default"}
                 className={cn(
                   "w-full rounded-[2px] transition-transform duration-200 ease-[0.23,1,0.32,1] hover:scale-[0.98] active:scale-95 hover:bg-destructive/10 hover:text-destructive",
-                  !sidebarCollapsed && "justify-start"
+                  !sidebarCollapsed && "justify-start",
                 )}
                 onClick={() => {
-                  const callbackUrl = encodeURIComponent(window.location.origin);
+                  const callbackUrl = encodeURIComponent(
+                    window.location.origin,
+                  );
                   window.location.href = `https://tcetcercd.in/logout?callbackUrl=${callbackUrl}`;
                 }}
               >
                 <LogOut className="h-4 w-4 shrink-0" />
-                {!sidebarCollapsed && <span className="ml-3 font-mono text-[10px] uppercase tracking-wider">SIGN OUT</span>}
+                {!sidebarCollapsed && (
+                  <span className="ml-3 font-mono text-[10px] uppercase tracking-wider">
+                    SIGN OUT
+                  </span>
+                )}
               </Button>
             </TooltipTrigger>
             {sidebarCollapsed && (
-              <TooltipContent side="right" sideOffset={10} className="font-mono text-[10px] uppercase tracking-wider rounded-[2px] bg-destructive text-destructive-foreground">Sign Out</TooltipContent>
+              <TooltipContent
+                side="right"
+                sideOffset={10}
+                className="font-mono text-[10px] uppercase tracking-wider rounded-[2px] bg-destructive text-destructive-foreground"
+              >
+                Sign Out
+              </TooltipContent>
             )}
           </Tooltip>
         </div>

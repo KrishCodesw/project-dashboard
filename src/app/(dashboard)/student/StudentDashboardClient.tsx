@@ -60,7 +60,7 @@ export default function StudentDashboardClient({
           animate={{ opacity: 1, y: 0 }}
         >
           <h1 className="text-3xl font-bold">
-            {greeting}, {userName.split(" ")[0]} 👋
+            {greeting}, {userName.split(" ")[0]}
           </h1>
           <p className="text-muted-foreground mt-1">
             Track your projects and tasks

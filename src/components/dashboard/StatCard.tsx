@@ -15,10 +15,10 @@ interface StatCardProps {
 }
 
 const colorMap: Record<string, string> = {
-  indigo: "from-indigo-500/10 to-indigo-500/20 text-indigo-400",
-  violet: "from-violet-500/10 to-violet-500/20 text-violet-400",
-  emerald: "from-emerald-500/10 to-emerald-500/20 text-emerald-400",
-  amber: "from-amber-500/10 to-amber-500/20 text-amber-400",
+  indigo: "bg-muted text-primary",
+  violet: "bg-muted text-primary",
+  emerald: "bg-muted text-primary",
+  amber: "bg-muted text-primary",
 };
 
 export function StatCard({ title, value, suffix = "", icon: Icon, color, trend, className }: StatCardProps) {
@@ -39,32 +39,30 @@ export function StatCard({ title, value, suffix = "", icon: Icon, color, trend, 
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      whileHover={{ scale: 1.02, boxShadow: "0 0 20px rgba(99, 102, 241, 0.1)" }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        "relative overflow-hidden rounded-xl border bg-card p-6 shadow-sm transition-shadow",
+        "relative overflow-hidden rounded-[2px] border border-border bg-card p-6 shadow-none transition-transform duration-200 ease-[0.23,1,0.32,1] hover:scale-[0.99] active:scale-[0.97]",
         className
       )}
     >
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="mt-2 text-3xl font-bold">
+          <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">{title}</p>
+          <p className="mt-2 text-3xl font-sans font-medium tracking-tight text-foreground">
             {displayValue}{suffix}
           </p>
           {trend && (
-            <p className={cn("mt-1 text-xs", trend.positive ? "text-emerald-500" : "text-rose-500")}>
+            <p className={cn("mt-1 text-[10px] font-mono uppercase tracking-wider", trend.positive ? "text-emerald-600" : "text-destructive")}>
               {trend.positive ? "↑" : "↓"} {trend.value}% from last month
             </p>
           )}
         </div>
-        <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br", color && colorMap[color] ? colorMap[color] : "from-indigo-500/10 to-violet-500/10 text-indigo-400")}>
-          <Icon className="h-6 w-6" />
+        <div className={cn("flex h-12 w-12 items-center justify-center rounded-[2px] border border-border", color && colorMap[color] ? colorMap[color] : "bg-muted text-primary")}>
+          <Icon className="h-5 w-5" />
         </div>
       </div>
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-violet-600 opacity-50" />
     </motion.div>
   );
 }

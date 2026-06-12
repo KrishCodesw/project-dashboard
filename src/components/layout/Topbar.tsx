@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Bell, Search, Moon, Sun, Command as CommandIcon, User, LogOut, Settings } from "lucide-react";
+import { Bell, Search, Moon, Sun, Command as CommandIcon, User, LogOut, Settings, Menu } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
@@ -16,6 +16,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface TopbarProps {
   userId: string;
@@ -27,10 +28,15 @@ interface TopbarProps {
 export function Topbar({ userId, userName, userRole, userImage }: TopbarProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const { sidebarCollapsed, setNotificationPanelOpen } = useUIStore();
+  const { sidebarCollapsed, toggleSidebar, setNotificationPanelOpen } = useUIStore();
   const { data: unreadData } = useUnreadCount(userId);
   const unreadCount = unreadData?.count ?? 0;
   const [commandOpen, setCommandOpen] = React.useState(false);
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Hydration fix for useMediaQuery
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
 
   const initials = userName
     .split(" ")
@@ -96,11 +102,25 @@ export function Topbar({ userId, userName, userRole, userImage }: TopbarProps) {
   return (
     <>
       <motion.header
-        animate={{ paddingLeft: sidebarCollapsed ? 64 : 240 }}
+        initial={false}
+        animate={{ 
+          left: mounted && isMobile ? 0 : (sidebarCollapsed ? 64 : 240) 
+        }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed top-0 left-0 right-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-md"
+        className="fixed top-0 right-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-md"
       >
         <div className="flex min-w-0 items-center gap-3">
+          {mounted && isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="mr-2 rounded-[2px]"
+              onClick={toggleSidebar}
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle menu</span>
+            </Button>
+          )}
           <Button
             variant="outline"
             className="h-9 w-[190px] justify-start gap-2 border-dashed bg-background/70 text-muted-foreground hover:text-foreground md:w-[300px]"

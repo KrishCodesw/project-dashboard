@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { NotificationPanel } from "@/components/layout/NotificationPanel";
 import { useUIStore } from "@/store/ui.store";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface DashboardShellProps {
   userId: string;
@@ -25,6 +26,11 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const pathname = usePathname();
   const { sidebarCollapsed } = useUIStore();
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Hydration fix for useMediaQuery
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   return (
     <div className="dashboard-surface min-h-screen bg-background">
@@ -33,8 +39,8 @@ export function DashboardShell({
       <NotificationPanel userId={userId} />
 
       <motion.main
-        animate={{ marginLeft: sidebarCollapsed ? 64 : 240 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
+        animate={{ marginLeft: mounted && isMobile ? 0 : (sidebarCollapsed ? 64 : 240) }}
+        transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
         className="pt-16 min-h-screen"
       >
         <AnimatePresence mode="wait">
