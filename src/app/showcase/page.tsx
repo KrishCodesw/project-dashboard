@@ -1,6 +1,8 @@
 import { getPublicShowcaseProjects } from "@/server/actions/showcase";
 import AnimatedShowcase from "@/components/showcase/AnimatedShowcase";
 import LabStats from "@/components/showcase/LabStats";
+import TextReveal from "@/components/showcase/TextReveal";
+import InteractiveWorkflow from "@/components/showcase/InteractiveWorkflow";
 import Footer from "@/components/ui/Footer";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import FloatingPillNavbar from "@/components/ui/ShowCaseNavbar";
@@ -29,12 +31,17 @@ export default async function PublicShowcasePage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-[#E5E5E5] dark:bg-[#050505]">
+    <div className="relative min-h-screen bg-background">
       <FloatingPillNavbar />
       <ThemeToggle />
 
-      <main className="  relative z-10 pt-24 sm:pt-32 md:pt-40 lg:pt-0 bg-[#FAFAFA] dark:bg-[#111111] mb-[45vh] sm:mb-[50vh] md:mb-[80vh] transition-colors duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+      <main className="relative z-10 pt-24 sm:pt-32 md:pt-40 lg:pt-0 bg-transparent mb-[45vh] sm:mb-[50vh] md:mb-[80vh]">
         <AnimatedShowcase projects={projects || []} />
+        
+        <TextReveal text="We believe in the power of highly structured design systems. Stripping away unnecessary shadows, gradients, and noise reveals the raw mechanics of an application. This is brutalist engineering—content first, style as utility, functionality uncompromised." />
+
+        <InteractiveWorkflow />
+
         <LabStats images={slideshowImages} />
       </main>
 

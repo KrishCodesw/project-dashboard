@@ -54,15 +54,26 @@ module.exports = {
         success: "#10b981",
         warning: "#f59e0b",
         danger: "#f43f5e",
+        editorial: {
+          bg: "#f7f6f2",
+          fg: "#1c1c1c",
+          primary: "#3d7068",
+          border: "#e5e4de",
+          secondary: "#B4B4B4"
+        }
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "2px",
+        md: "2px",
+        sm: "1px",
       },
       fontFamily: {
-        sans: ["var(--font-geist-sans)"],
-        mono: ["var(--font-geist-mono)"],
+        sans: ["var(--font-space-grotesk)", "sans-serif"],
+        serif: ["var(--font-playfair)", "serif"],
+        mono: ["var(--font-space-mono)", "monospace"],
+      },
+      transitionTimingFunction: {
+        editorial: 'cubic-bezier(0.16, 1, 0.3, 1)',
       },
       keyframes: {
         "accordion-down": {

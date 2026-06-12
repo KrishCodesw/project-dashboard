@@ -97,9 +97,8 @@ export function Topbar({ userId, userName, userRole, userImage }: TopbarProps) {
     <>
       <motion.header
         animate={{ paddingLeft: sidebarCollapsed ? 64 : 240 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="sticky top-0 z-30 flex h-16 items-center justify-between border-b px-4 md:px-6"
-        style={{ backdropFilter: "blur(12px)", backgroundColor: "hsl(var(--background) / 0.8)" }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed top-0 left-0 right-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 px-6 backdrop-blur-md"
       >
         <div className="flex min-w-0 items-center gap-3">
           <Button
@@ -120,6 +119,7 @@ export function Topbar({ userId, userName, userRole, userImage }: TopbarProps) {
           <Button
             variant="ghost"
             size="icon"
+            className="transition-transform duration-200 ease-[0.23,1,0.32,1] hover:scale-105 active:scale-95"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
@@ -130,24 +130,22 @@ export function Topbar({ userId, userName, userRole, userImage }: TopbarProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="relative"
+            className="relative transition-transform duration-200 ease-[0.23,1,0.32,1] hover:scale-105 active:scale-95"
             onClick={() => setNotificationPanelOpen(true)}
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center">
-                <span className="absolute inline-flex h-full w-full animate-pulse-ring rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
+              <span className="absolute right-1 top-1 flex h-2.5 w-2.5 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-[1px] bg-primary opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 items-center justify-center rounded-[1px] bg-primary" />
               </span>
             )}
             <span className="sr-only">Notifications</span>
           </Button>
 
-          <Avatar className="h-8 w-8">
-            {userImage && <AvatarImage src={userImage} alt={userName} />}
-            <AvatarFallback className="text-xs bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
+          <Avatar className="h-8 w-8 rounded-[2px] border border-border cursor-pointer transition-transform duration-200 ease-[0.23,1,0.32,1] hover:scale-105 active:scale-95">
+            {userImage && <AvatarImage src={userImage} alt={userName} className="rounded-[2px]" />}
+            <AvatarFallback className="text-[10px] bg-muted text-foreground font-mono uppercase tracking-wider rounded-[2px]">
               {initials}
             </AvatarFallback>
           </Avatar>

@@ -543,7 +543,7 @@ export async function adminUpdateProjectMentor(data: z.infer<typeof adminUpdateM
 }
 
 export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemberSchema>) {
-  await requireAdminSession();
+  const adminId = await requireAdminSession();
   const validated = adminUpsertMemberSchema.parse(data);
 
   const project = await prisma.project.findUnique({
@@ -570,7 +570,7 @@ export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemb
   });
 
   if (!student) {
-    throw new Error("Student not found. Use student email, ID, or roll number.");
+    throw new Error("Student not found. The student must visit the dashboard at least once before they can be added.");
   }
 
   if (project.members.some((member) => member.studentId === student.id)) {
@@ -805,7 +805,7 @@ export async function addProjectMember(
   });
 
   if (!student) {
-    throw new Error("Student not found. Please provide a valid email, ID, or Roll Number.");
+    throw new Error("Student not found. The student must visit the dashboard at least once before they can be added.");
   }
 
   if (project.members.some(m => m.studentId === student.id)) {

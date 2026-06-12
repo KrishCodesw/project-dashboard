@@ -372,7 +372,7 @@ export function PublicationForm({
 
             {publicationType === "PAPER" && (
               <>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
                     name="volume"
@@ -491,7 +491,7 @@ export function PublicationForm({
                     </PopoverTrigger>
                     {/* Added min-w-[280px] to prevent the CSS bunching bug */}
                     <PopoverContent
-                      className="w-auto min-w-[280px] p-0 z-[100]"
+                      className="w-auto min-w-[280px] p-0 z-[105]"
                       align="start"
                     >
                       <Calendar

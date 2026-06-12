@@ -76,11 +76,11 @@ export function Sidebar({ role, userName }: SidebarProps) {
     <TooltipProvider delayDuration={0}>
       <motion.aside
         animate={{ width: sidebarCollapsed ? 64 : 240 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="fixed left-0 top-0 z-40 flex h-screen flex-col border-r bg-card"
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-background"
       >
         {/* Logo */}
-        <div className="flex h-16 items-center justify-between px-4">
+        <div className="flex h-16 items-center justify-between px-4 border-b border-border">
           <AnimatePresence mode="wait">
             {!sidebarCollapsed && (
               <motion.div
@@ -89,24 +89,22 @@ export function Sidebar({ role, userName }: SidebarProps) {
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-2"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600">
-                  <GraduationCap className="h-5 w-5 text-white" />
+                <div className="flex h-6 w-6 items-center justify-center border border-foreground/20 rounded-[2px] transition-transform duration-200 hover:scale-105 active:scale-95">
+                  <div className="h-2 w-2 bg-foreground rounded-[1px]" />
                 </div>
-                <span className="font-semibold text-sm">Project Dashboard</span>
+                <span className="font-serif text-lg tracking-tight">SUPERDESIGN</span>
               </motion.div>
             )}
           </AnimatePresence>
           {sidebarCollapsed && (
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 mx-auto">
-              <GraduationCap className="h-5 w-5 text-white" />
+            <div className="flex h-6 w-6 items-center justify-center border border-foreground/20 rounded-[2px] mx-auto transition-transform duration-200 hover:scale-105 active:scale-95">
+              <div className="h-2 w-2 bg-foreground rounded-[1px]" />
             </div>
           )}
         </div>
 
-        <Separator />
-
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 p-2">
+        <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -117,15 +115,15 @@ export function Sidebar({ role, userName }: SidebarProps) {
               <Link
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm font-sans font-medium transition-all duration-200 ease-[0.23,1,0.32,1] border border-transparent hover:scale-[0.98] active:scale-95",
                   isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   sidebarCollapsed && "justify-center px-2"
                 )}
               >
                 <item.icon
-                  className={cn("h-5 w-5 shrink-0", isActive && "text-primary")}
+                  className={cn("h-4 w-4 shrink-0 transition-colors duration-200", isActive ? "text-primary-foreground" : "text-muted-foreground")}
                 />
                 <AnimatePresence mode="wait">
                   {!sidebarCollapsed && (
@@ -139,13 +137,6 @@ export function Sidebar({ role, userName }: SidebarProps) {
                     </motion.span>
                   )}
                 </AnimatePresence>
-                {isActive && (
-                  <motion.div
-                    layoutId="sidebar-active"
-                    className="absolute left-0 h-8 w-1 rounded-r-full bg-primary"
-                    transition={{ duration: 0.2 }}
-                  />
-                )}
               </Link>
             );
 
@@ -154,7 +145,9 @@ export function Sidebar({ role, userName }: SidebarProps) {
                 {sidebarCollapsed ? (
                   <Tooltip>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                    <TooltipContent side="right">{item.title}</TooltipContent>
+                    <TooltipContent side="right" sideOffset={10} className="font-mono text-[10px] uppercase tracking-wider rounded-[2px] bg-foreground text-background">
+                      {item.title}
+                    </TooltipContent>
                   </Tooltip>
                 ) : (
                   linkContent
@@ -164,14 +157,12 @@ export function Sidebar({ role, userName }: SidebarProps) {
           })}
         </nav>
 
-        <Separator />
-
         {/* Footer */}
-        <div className="p-2 space-y-1">
+        <div className="p-3 space-y-1 border-t border-border bg-muted/30">
           {!sidebarCollapsed && (
-            <div className="px-3 py-2">
-              <p className="text-sm font-medium truncate">{userName}</p>
-              <p className="text-xs text-muted-foreground">{roleLabel}</p>
+            <div className="px-3 py-2 mb-2">
+              <p className="text-sm font-sans font-medium truncate">{userName}</p>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{roleLabel}</p>
             </div>
           )}
           <Tooltip>
@@ -179,28 +170,31 @@ export function Sidebar({ role, userName }: SidebarProps) {
               <Button
                 variant="ghost"
                 size={sidebarCollapsed ? "icon" : "default"}
-                className={cn("w-full", !sidebarCollapsed && "justify-start")}
+                className={cn(
+                  "w-full rounded-[2px] transition-transform duration-200 ease-[0.23,1,0.32,1] hover:scale-[0.98] active:scale-95 hover:bg-destructive/10 hover:text-destructive",
+                  !sidebarCollapsed && "justify-start"
+                )}
                 onClick={() => {
                   const callbackUrl = encodeURIComponent(window.location.origin);
                   window.location.href = `https://tcetcercd.in/logout?callbackUrl=${callbackUrl}`;
                 }}
               >
                 <LogOut className="h-4 w-4 shrink-0" />
-                {!sidebarCollapsed && <span className="ml-3">Sign Out</span>}
+                {!sidebarCollapsed && <span className="ml-3 font-mono text-[10px] uppercase tracking-wider">SIGN OUT</span>}
               </Button>
             </TooltipTrigger>
             {sidebarCollapsed && (
-              <TooltipContent side="right">Sign Out</TooltipContent>
+              <TooltipContent side="right" sideOffset={10} className="font-mono text-[10px] uppercase tracking-wider rounded-[2px] bg-destructive text-destructive-foreground">Sign Out</TooltipContent>
             )}
           </Tooltip>
         </div>
 
         {/* Toggle button */}
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
           onClick={toggleSidebar}
-          className="absolute -right-3 top-20 z-50 h-6 w-6 rounded-full border bg-background shadow-sm"
+          className="absolute -right-3 top-20 z-50 h-6 w-6 rounded-[2px] border-border bg-background transition-transform duration-200 ease-[0.23,1,0.32,1] hover:scale-110 active:scale-90"
         >
           {sidebarCollapsed ? (
             <ChevronRight className="h-3 w-3" />
