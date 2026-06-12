@@ -117,7 +117,6 @@ export function PublicationForm({
 }: PublicationFormProps) {
   const [open, setOpen] = useState(false);
   const [authorInput, setAuthorInput] = useState("");
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const createMutation = useCreatePublication();
   const updateMutation = useUpdatePublication();
