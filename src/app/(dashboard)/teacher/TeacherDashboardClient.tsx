@@ -45,7 +45,7 @@ export default function TeacherDashboardClient({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-3xl font-bold">
-            {greeting}, {userName.split(" ")[0]} 👋
+            {greeting}, {userName.split(" ")[0]}
           </h1>
           <p className="text-muted-foreground mt-1">
             Here&apos;s what&apos;s happening with your projects today.

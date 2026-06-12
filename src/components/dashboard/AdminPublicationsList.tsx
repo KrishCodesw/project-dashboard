@@ -130,7 +130,7 @@ export function AdminPublicationsList({
                   <CardTitle className="text-lg mb-2">
                     {publication.title}
                   </CardTitle>
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                     <span>Project: {publication.project?.title ?? "Unknown"}</span>
                     <span>By: {publication.authors}</span>
                     <span>
@@ -144,7 +144,7 @@ export function AdminPublicationsList({
                 <div className="flex items-center gap-2">
                   <Badge
                     variant={statusConfig.variant}
-                    className="flex items-center gap-1"
+                    className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider"
                   >
                     <StatusIcon className="w-3 h-3" />
                     {statusConfig.label}
@@ -154,7 +154,7 @@ export function AdminPublicationsList({
                     publication.score > 0 && (
                       <Badge
                         variant="outline"
-                        className="text-green-600 border-green-600"
+                        className="text-editorial-primary border-editorial-primary font-mono text-[9px] uppercase tracking-wider"
                       >
                         {publication.score} points
                       </Badge>
@@ -163,7 +163,7 @@ export function AdminPublicationsList({
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 bg-card">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 {details.journalName && (
                   <div>
@@ -192,7 +192,7 @@ export function AdminPublicationsList({
                       href={`https://doi.org/${publication.uniqueIdentifier}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
+                      className="text-primary hover:underline font-mono"
                     >
                       {publication.uniqueIdentifier}
                     </a>
@@ -229,22 +229,22 @@ export function AdminPublicationsList({
                     href={details.proofUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-blue-600 hover:underline text-sm"
+                    className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-mono uppercase tracking-wider"
                   >
-                    <ExternalLinkIcon className="w-4 h-4" />
+                    <ExternalLinkIcon className="w-3 h-3" />
                     View Proof
                   </a>
                 </div>
               )}
 
               {details.remarks && (
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Remarks:</span> {details.remarks}
+                <div className="text-sm text-muted-foreground border-l-2 border-border pl-3 italic">
+                   {details.remarks}
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-2 border-t">
-                <div className="text-xs text-gray-500">
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">
                   Added {format(new Date(publication.createdAt), "PPp")}
                 </div>
                 {publication.status === "PENDING" && (

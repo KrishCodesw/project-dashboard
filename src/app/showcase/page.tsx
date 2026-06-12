@@ -22,18 +22,24 @@ export default async function PublicShowcasePage() {
 
     slideshowImages = files
       .filter((file) => /\.(jpg|jpeg|png|webp|avif)$/i.test(file))
-      .sort()
+      .sort((a, b) => {
+        // Extract numbers for proper numerical sorting (i1, i2, ..., i10)
+        const numA = parseInt(a.replace(/\D/g, "")) || 0;
+        const numB = parseInt(b.replace(/\D/g, "")) || 0;
+        return numA - numB;
+      })
       .map((file) => `/images-rollingdisplay/${file}`);
   } catch (error) {
     console.error("[showcase-page] Failed to read image folder:", error);
   }
 
   return (
-    <div className="relative min-h-screen bg-[#E5E5E5] dark:bg-[#050505]">
+    <div className="relative min-h-screen bg-background ">
       <FloatingPillNavbar />
       <ThemeToggle />
 
-      <main className="  relative z-10 pt-24 sm:pt-32 md:pt-40 lg:pt-0 bg-[#FAFAFA] dark:bg-[#111111] mb-[45vh] sm:mb-[50vh] md:mb-[80vh] transition-colors duration-500 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+      <main className="relative z-10 pt-24 sm:pt-32 md:pt-40 lg:pt-0 bg-background mb-[60vh] md:mb-[80vh] shadow-[0_8px_60px_rgba(0,0,0,0.18)] rounded-b-3xl">
+        {" "}
         <AnimatedShowcase projects={projects || []} />
         <LabStats images={slideshowImages} />
       </main>

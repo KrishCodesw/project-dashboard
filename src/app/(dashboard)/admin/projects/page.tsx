@@ -185,6 +185,7 @@ export default function AdminProjectsPage() {
     useAllPublications("ALL", {
       enabled: publicationsOpen,
     });
+  
   const { data: pendingCount = 0 } = usePendingPublicationsCount();
 
   const projects = data?.projects ?? [];
