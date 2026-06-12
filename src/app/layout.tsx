@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import React from "react";
 import "@fontsource/space-grotesk";
 import "@fontsource/playfair-display";
 import "@fontsource/space-mono";
@@ -8,7 +9,7 @@ import { QueryProvider } from "@/components/providers/QueryProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SUPERDESIGN - Academic Project Dashboard",
+  title: "Academic Project Dashboard",
   description: "Monitor and manage academic projects with ease",
 };
 
@@ -20,12 +21,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className="font-sans antialiased max-w-7xl mx-auto min-h-screen flex flex-col relative"
-        style={{
-          '--font-space-grotesk': '"Space Grotesk", sans-serif',
-          '--font-playfair': '"Playfair Display", serif',
-          '--font-space-mono': '"Space Mono", monospace',
-        } as React.CSSProperties}
+        className="font-sans antialiased min-h-screen flex flex-col relative bg-background"
+        style={
+          {
+            "--font-space-grotesk": '"Space Grotesk", sans-serif',
+            "--font-playfair": '"Playfair Display", serif',
+            "--font-space-mono": '"Space Mono", monospace',
+          } as React.CSSProperties
+        }
       >
         <ThemeProvider
           attribute="class"
@@ -52,7 +55,7 @@ export default function RootLayout({
                   borderRadius: "2px",
                   textTransform: "uppercase",
                   fontSize: "10px",
-                  letterSpacing: "0.1em"
+                  letterSpacing: "0.1em",
                 },
               }}
             />
