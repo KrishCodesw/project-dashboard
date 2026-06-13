@@ -78,10 +78,19 @@ interface SidebarProps {
 
 export function Sidebar({ role, userName }: SidebarProps) {
   const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const { sidebarCollapsed, toggleSidebar, setSidebarCollapsed } = useUIStore();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // Hydration fix for useMediaQuery
+  // Auto-collapse when switching to mobile, expand on desktop
+  React.useEffect(() => {
+    if (isMobile) {
+      setSidebarCollapsed(true);
+    } else {
+      setSidebarCollapsed(false);
+    }
+  }, [isMobile, setSidebarCollapsed]);
+
+  // Hydration fix
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
@@ -97,22 +106,26 @@ export function Sidebar({ role, userName }: SidebarProps) {
 
   const getSidebarWidth = () => {
     if (!mounted) return 240;
-    if (isMobile) return sidebarCollapsed ? 0 : "100%";
+    if (isMobile) return 280;
     return sidebarCollapsed ? 64 : 240;
   };
 
   const getSidebarX = () => {
     if (!mounted) return 0;
-    if (isMobile) return sidebarCollapsed ? "-100%" : 0;
+    if (isMobile) return sidebarCollapsed ? -280 : 0;
     return 0;
   };
 
   return (
     <TooltipProvider delayDuration={0}>
       <motion.aside
+        initial={false}
         animate={{ width: getSidebarWidth(), x: getSidebarX() }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-background"
+        className={cn(
+          "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-background",
+          isMobile && !sidebarCollapsed && "shadow-2xl shadow-black/50"
+        )}
       >
         {/* Logo */}
         <div className="flex h-16 items-center justify-between px-4 border-b border-border">
@@ -151,6 +164,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
             const linkContent = (
               <Link
                 href={item.href}
+                onClick={() => isMobile && toggleSidebar()}
                 className={cn(
                   "flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm font-sans font-medium transition-all duration-200 ease-[0.23,1,0.32,1] border border-transparent hover:scale-[0.98] active:scale-95",
                   isActive
@@ -252,18 +266,20 @@ export function Sidebar({ role, userName }: SidebarProps) {
         </div>
 
         {/* Toggle button */}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={toggleSidebar}
-          className="absolute -right-3 top-20 z-50 h-6 w-6 rounded-[2px] border-border bg-background transition-transform duration-200 ease-[0.23,1,0.32,1] hover:scale-110 active:scale-90"
-        >
-          {sidebarCollapsed ? (
-            <ChevronRight className="h-3 w-3" />
-          ) : (
-            <ChevronLeft className="h-3 w-3" />
-          )}
-        </Button>
+        {!isMobile && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleSidebar}
+            className="absolute -right-3 top-20 z-50 h-6 w-6 rounded-[2px] border-border bg-background transition-transform duration-200 ease-[0.23,1,0.32,1] hover:scale-110 active:scale-90"
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-3 w-3" />
+            ) : (
+              <ChevronLeft className="h-3 w-3" />
+            )}
+          </Button>
+        )}
       </motion.aside>
     </TooltipProvider>
   );

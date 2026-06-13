@@ -19,7 +19,7 @@ export default function Footer() {
   return (
     <footer
       ref={containerRef}
-      className="fixed bottom-0 left-0 w-full h-[60vh] md:h-[80vh] bg-background text-foreground flex flex-col items-center justify-center z-0"
+      className="fixed bottom-0 left-0 w-full h-[50vh] sm:h-[60vh] md:h-[80vh] bg-background text-foreground flex flex-col items-center justify-center z-0"
     >
       <div className="flex flex-col items-center text-center px-8 md:px-12 w-full max-w-7xl mx-auto">
         {/* UPPER LABEL */}
