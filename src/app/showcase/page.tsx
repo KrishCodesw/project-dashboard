@@ -38,7 +38,7 @@ export default async function PublicShowcasePage() {
       <FloatingPillNavbar />
       <ThemeToggle />
 
-      <main className="relative z-10 pt-24 sm:pt-32 md:pt-40 lg:pt-0 bg-background mb-[60vh] md:mb-[80vh] shadow-[0_8px_60px_rgba(0,0,0,0.18)] rounded-b-3xl">
+      <main className="relative z-10 pt-24 sm:pt-32 md:pt-40 lg:pt-0 bg-background mb-[50vh] sm:mb-[60vh] md:mb-[80vh] shadow-[0_8px_60px_rgba(0,0,0,0.18)] rounded-b-3xl">
         {" "}
         <AnimatedShowcase projects={projects || []} />
         <LabStats images={slideshowImages} />

@@ -75,8 +75,8 @@ export default function AnimatedShowcase({ projects }: { projects: any[] }) {
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top top",
-          end: isDesktop ? "+=400vh" : "+=800vh",
-          scrub: isDesktop ? 2 : 3,
+          end: isDesktop ? "+=400vh" : "+=400vh",
+          scrub: isDesktop ? 2 : 2.5,
           pin: true,
         },
       });

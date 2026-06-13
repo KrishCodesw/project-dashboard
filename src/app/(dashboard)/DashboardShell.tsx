@@ -25,7 +25,7 @@ export function DashboardShell({
   children,
 }: DashboardShellProps) {
   const pathname = usePathname();
-  const { sidebarCollapsed } = useUIStore();
+  const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Hydration fix for useMediaQuery
@@ -37,6 +37,19 @@ export function DashboardShell({
       <Sidebar role={userRole} userName={userName} />
       <Topbar userId={userId} userName={userName} userRole={userRole} userImage={userImage} />
       <NotificationPanel userId={userId} />
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {mounted && isMobile && !sidebarCollapsed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={toggleSidebar}
+            className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px]"
+          />
+        )}
+      </AnimatePresence>
 
       <motion.main
         animate={{ marginLeft: mounted && isMobile ? 0 : (sidebarCollapsed ? 64 : 240) }}

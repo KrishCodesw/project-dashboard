@@ -123,7 +123,7 @@ export function Topbar({ userId, userName, userRole, userImage }: TopbarProps) {
           )}
           <Button
             variant="outline"
-            className="h-9 w-[190px] justify-start gap-2 border-dashed bg-background/70 text-muted-foreground hover:text-foreground md:w-[300px]"
+            className="h-9 w-[140px] sm:w-[190px] justify-start gap-2 border-dashed bg-background/70 text-muted-foreground hover:text-foreground md:w-[300px]"
             onClick={() => setCommandOpen(true)}
           >
             <Search className="h-4 w-4" />
