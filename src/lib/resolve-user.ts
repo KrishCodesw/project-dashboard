@@ -6,6 +6,18 @@ export type CoeAuthUser = {
   name?: string;
   role: string;
   status: string;
+  department?: string | null;
+  uid?: string | null;
+};
+
+export type SyncUserInput = {
+  email: string;
+  name?: string;
+  role: string;
+  department?: string | null;
+  uid?: string | null;
+  status: string;
+  isActive?: boolean;
 };
 
 type ResolvedUser = {
@@ -26,82 +38,129 @@ function defaultName(email: string) {
   return localPart?.trim() || email;
 }
 
-export async function resolveUser(authUser: CoeAuthUser): Promise<ResolvedUser | null> {
-  if (authUser.status !== "ACTIVE") return null;
-
-  const mappedRole = mapCoERoleToDashboard(authUser.role);
+/**
+ * Core upsert logic shared between lazy provisioning (resolveUser) and
+ * the internal sync endpoint (POST /api/internal/users/upsert).
+ *
+ * - Normalises email
+ * - Maps COE role to dashboard role
+ * - Upserts user by email (idempotent)
+ * - Resolves pending project assignments for new users
+ * - Returns the resolved user or null if role is unsupported
+ */
+export async function upsertDashboardUser(input: SyncUserInput): Promise<ResolvedUser | null> {
+  const mappedRole = mapCoERoleToDashboard(input.role);
   if (!mappedRole) return null;
 
-  const email = normalizeEmail(authUser.email);
+  const email = normalizeEmail(input.email);
 
   return prisma.$transaction(async (tx) => {
     const existing = await tx.user.findUnique({
       where: { email },
-      select: { id: true, name: true, email: true, role: true, isActive: true, avatarUrl: true },
+      select: {
+        id: true, name: true, email: true, role: true,
+        isActive: true, avatarUrl: true, department: true,
+      },
     });
 
     if (existing) {
-      // Sync name if provided and changed
-      if (authUser.name && existing.name !== authUser.name) {
+      const updateData: Record<string, unknown> = {};
+      if (input.name && existing.name !== input.name) updateData.name = input.name;
+      if (existing.role !== mappedRole) updateData.role = mappedRole;
+      if (input.department !== undefined && existing.department !== input.department) {
+        updateData.department = input.department;
+      }
+      if (input.isActive !== undefined && existing.isActive !== input.isActive) {
+        updateData.isActive = input.isActive;
+      }
+
+      // Only overwrite uid when source provides a non-null value
+      // (prevents erasing existing data with empty sync payloads)
+      if (input.uid !== undefined && input.uid !== null) {
+        updateData.uid = input.uid;
+      }
+
+      // Derive isActive from COE status: ACTIVE → true, anything else → false
+      if (input.status) {
+        updateData.isActive = input.status === "ACTIVE";
+      }
+
+      if (Object.keys(updateData).length > 0) {
         await tx.user.update({
           where: { id: existing.id },
-          data: { name: authUser.name },
+          data: updateData,
         });
       }
+
       return {
         id: existing.id,
-        name: authUser.name || existing.name,
+        name: input.name || existing.name,
         email: existing.email,
         role: existing.role,
-        isActive: existing.isActive,
+        isActive: input.status ? input.status === "ACTIVE" : existing.isActive,
         avatarUrl: existing.avatarUrl,
       };
     }
 
+    // Only create if status is ACTIVE
+    if (input.status !== "ACTIVE") return null;
+
     const created = await tx.user.create({
       data: {
-        name: authUser.name || defaultName(email),
+        name: input.name || defaultName(email),
         email,
         role: mappedRole,
-        isActive: true,
+        isActive: input.status === "ACTIVE",
         passwordHash: "",
-      },
-      select: { id: true, name: true, email: true, role: true, isActive: true, avatarUrl: true },
-    });
-
-    const pendingAssignments = await tx.pendingProjectAssignment.findMany({
-      where: {
-        email,
-        status: "PENDING",
+        department: input.department ?? null,
+        uid: input.uid ?? null,
       },
       select: {
-        projectId: true,
-        memberRole: true,
+        id: true, name: true, email: true, role: true,
+        isActive: true, avatarUrl: true,
       },
+    });
+
+    // Resolve any pending project assignments for this email
+    const pendingAssignments = await tx.pendingProjectAssignment.findMany({
+      where: { email, status: "PENDING" },
+      select: { projectId: true, memberRole: true },
     });
 
     if (pendingAssignments.length > 0) {
       await tx.projectMember.createMany({
-        data: pendingAssignments.map((assignment) => ({
-          projectId: assignment.projectId,
+        data: pendingAssignments.map((a) => ({
+          projectId: a.projectId,
           studentId: created.id,
-          role: assignment.memberRole,
+          role: a.memberRole,
         })),
         skipDuplicates: true,
       });
 
       await tx.pendingProjectAssignment.updateMany({
-        where: {
-          email,
-          status: "PENDING",
-        },
-        data: {
-          status: "ASSIGNED",
-        },
+        where: { email, status: "PENDING" },
+        data: { status: "ASSIGNED" },
       });
     }
 
     return created;
+  });
+}
+
+/**
+ * Lazy-provisions a user from CoE auth headers.
+ * Called when a user visits the dashboard for the first time.
+ * This is the FALLBACK — it remains untouched as a safety net.
+ */
+export async function resolveUser(authUser: CoeAuthUser): Promise<ResolvedUser | null> {
+  if (authUser.status !== "ACTIVE") return null;
+  return upsertDashboardUser({
+    email: authUser.email,
+    name: authUser.name,
+    role: authUser.role,
+    status: authUser.status,
+    department: authUser.department,
+    uid: authUser.uid,
   });
 }
 
@@ -123,3 +182,6 @@ export async function resolveUserFromHeaders(
   if (!authUser) return null;
   return resolveUser(authUser);
 }
+
+// Re-export for convenience
+export { mapCoERoleToDashboard } from "@/lib/coe-auth";
