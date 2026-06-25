@@ -185,3 +185,120 @@ export async function resolveUserFromHeaders(
 
 // Re-export for convenience
 export { mapCoERoleToDashboard } from "@/lib/coe-auth";
+
+/**
+ * COE Main API URL and sync secret for on-demand user lookups.
+ */
+const COE_MAIN_URL = process.env.COE_MAIN_URL?.replace(/\/+$/, "");
+const SYNC_SECRET = process.env.SYNC_SECRET;
+
+/**
+ * Result of a COE Main user lookup.
+ */
+export type CoeUserLookupResult = {
+  name: string;
+  email: string;
+  uid: string | null;
+  role: string;
+  status: string;
+};
+
+/**
+ * Fetches a user from COE Main by UID.
+ *
+ * Returns the user data if found, or null if the user does not exist
+ * (COE returned 404). Throws on network errors / timeouts / 5xx so the
+ * caller can distinguish "not found" from "temporarily unavailable".
+ */
+export async function fetchUserFromCOE(
+  uid: string
+): Promise<CoeUserLookupResult | null> {
+  if (!COE_MAIN_URL || !SYNC_SECRET) {
+    console.warn(
+      "[fetchUserFromCOE] COE_MAIN_URL or SYNC_SECRET not configured — cannot look up",
+      uid
+    );
+    return null;
+  }
+
+  const url = `${COE_MAIN_URL}/api/internal/users/lookup?uid=${encodeURIComponent(uid)}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { "x-sync-secret": SYNC_SECRET },
+    // 5-second timeout so the caller can surface "try again later"
+    signal: AbortSignal.timeout(5000),
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `COE Main lookup failed (${response.status}): ${response.statusText}`
+    );
+  }
+
+  const body = await response.json();
+  if (!body?.success || !body?.data) {
+    return null;
+  }
+
+  return {
+    name: body.data.name,
+    email: body.data.email,
+    uid: body.data.uid,
+    role: body.data.role,
+    status: body.data.status,
+  };
+}
+
+/**
+ * Resolves a student by UID through the cache-then-source chain:
+ *
+ *   1. Look up in Dashboard DB.
+ *   2. If found → return immediately (fast path).
+ *   3. If not found → fetch from COE Main.
+ *   4. If COE has the user → upsert into Dashboard DB → return.
+ *   5. If COE doesn't have the user → return null.
+ *
+ * This lets the Dashboard DB behave as a cache while COE Main remains
+ * the system of record. Every student lookup path should call this
+ * instead of querying the Dashboard DB directly.
+ *
+ * @returns The resolved user, or null if the student was not found in
+ *          either the Dashboard DB or COE Main.
+ * @throws  If COE Main is reachable but returns an error, or if the
+ *          network request times out — the caller should surface
+ *          "Unable to verify student. Try again later."
+ */
+export async function resolveStudent(
+  uid: string
+): Promise<ResolvedUser | null> {
+  // Step 1: check the local cache (Dashboard DB)
+  const local = await prisma.user.findFirst({
+    where: {
+      role: "STUDENT",
+      OR: [{ uid }, { id: uid }],
+    },
+    select: {
+      id: true, name: true, email: true, role: true,
+      isActive: true, avatarUrl: true,
+    },
+  });
+  if (local) return local;
+
+  // Step 2: fetch from COE Main (the source of truth)
+  const coeUser = await fetchUserFromCOE(uid);
+  if (!coeUser) return null;
+
+  // Step 3: upsert into Dashboard DB (warm the cache)
+  return upsertDashboardUser({
+    email: coeUser.email,
+    name: coeUser.name,
+    role: coeUser.role,
+    status: coeUser.status,
+    uid: coeUser.uid ?? undefined,
+  });
+}

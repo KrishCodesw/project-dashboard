@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireCoeUser, requireRole } from "@/lib/coe-guard";
+import { resolveStudent } from "@/lib/resolve-user";
 import { deleteS3Object } from "@/lib/s3";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
@@ -559,22 +560,20 @@ export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemb
       return { success: false, error: "Maximum group size reached" };
     }
 
-    const student = await prisma.user.findFirst({
-      where: {
-        role: "STUDENT",
-        OR: [
-          { id: validated.studentIdentifier },
-          { email: validated.studentIdentifier },
-          { rollNumber: validated.studentIdentifier },
-          { uid: validated.studentIdentifier },
-        ],
-      },
-    });
+    let student;
+    try {
+      student = await resolveStudent(validated.studentIdentifier);
+    } catch {
+      return {
+        success: false,
+        error: "Unable to verify student information. Please try again later.",
+      };
+    }
 
     if (!student) {
       return {
         success: false,
-        error: "This student has not been found on the platform. They must first complete registration on the main portal (tcetcercd.in) and verify their email before they can be added. If they have already done so, ask them to log in to the dashboard once to activate their account.",
+        error: "Student is not registered on the main portal. They must first complete registration on tcetcercd.in before they can be added to a project.",
       };
     }
 
@@ -803,22 +802,20 @@ export async function addProjectMember(
       return { success: false, error: "Maximum group size reached" };
     }
 
-    const student = await prisma.user.findFirst({
-      where: {
-        role: "STUDENT",
-        OR: [
-          { id: studentIdentifier },
-          { email: studentIdentifier },
-          { rollNumber: studentIdentifier },
-          { uid: studentIdentifier },
-        ]
-      }
-    });
+    let student;
+    try {
+      student = await resolveStudent(studentIdentifier);
+    } catch {
+      return {
+        success: false,
+        error: "Unable to verify student information. Please try again later.",
+      };
+    }
 
     if (!student) {
       return {
         success: false,
-        error: "This student has not been found on the platform. They must first complete registration on the main portal (tcetcercd.in) and verify their email before they can be added. If they have already done so, ask them to log in to the dashboard once to activate their account.",
+        error: "Student is not registered on the main portal. They must first complete registration on tcetcercd.in before they can be added to a project.",
       };
     }
 
