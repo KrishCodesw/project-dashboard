@@ -26,16 +26,15 @@ export function MembersTab({ project }: MembersTabProps) {
     e.preventDefault();
     setAdding(true);
     const fd = new FormData(e.currentTarget);
-    try {
-      await addProjectMember(project.id, fd.get("studentId") as string);
+    const result = await addProjectMember(project.id, fd.get("studentId") as string);
+    if (result.success) {
       toast.success("Member added");
       queryClient.invalidateQueries({ queryKey: ["project", project.id] });
       setDialogOpen(false);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add member");
-    } finally {
-      setAdding(false);
+    } else {
+      toast.error(result.error || "Failed to add member");
     }
+    setAdding(false);
   }
 
   async function handleRemove(studentId: string) {

@@ -283,21 +283,20 @@ export default function AdminProjectsPage() {
     }
 
     setSavingProjectId(projectId);
-    try {
-      await adminAddProjectMember({
-        projectId,
-        studentIdentifier: identifier,
-        role,
-      });
+    const result = await adminAddProjectMember({
+      projectId,
+      studentIdentifier: identifier,
+      role,
+    });
+    if (result.success) {
       toast.success("Member added");
       setMemberDraft((prev) => ({ ...prev, [projectId]: "" }));
       setMemberRoleDraft((prev) => ({ ...prev, [projectId]: "MEMBER" }));
       await refreshData();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to add member");
-    } finally {
-      setSavingProjectId(null);
+    } else {
+      toast.error(result.error || "Failed to add member");
     }
+    setSavingProjectId(null);
   }
 
   async function onUpdateMemberRole(

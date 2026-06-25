@@ -543,58 +543,67 @@ export async function adminUpdateProjectMentor(data: z.infer<typeof adminUpdateM
 }
 
 export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemberSchema>) {
-  const adminId = await requireAdminSession();
-  const validated = adminUpsertMemberSchema.parse(data);
+  try {
+    const adminId = await requireAdminSession();
+    const validated = adminUpsertMemberSchema.parse(data);
 
-  const project = await prisma.project.findUnique({
-    where: { id: validated.projectId },
-    include: { members: true },
-  });
-  if (!project) {
-    throw new Error("Project not found");
-  }
-
-  if (project.members.length >= project.maxGroupSize) {
-    throw new Error("Maximum group size reached");
-  }
-
-  const student = await prisma.user.findFirst({
-    where: {
-      role: "STUDENT",
-      OR: [
-        { id: validated.studentIdentifier },
-        { email: validated.studentIdentifier },
-        { rollNumber: validated.studentIdentifier },
-      ],
-    },
-  });
-
-  if (!student) {
-    throw new Error("Student not found. The student must visit the dashboard at least once before they can be added.");
-  }
-
-  if (project.members.some((member) => member.studentId === student.id)) {
-    throw new Error("Student is already a member of this project");
-  }
-
-  if (validated.role === "LEAD") {
-    await prisma.projectMember.updateMany({
-      where: { projectId: validated.projectId, role: "LEAD" },
-      data: { role: "MEMBER" },
+    const project = await prisma.project.findUnique({
+      where: { id: validated.projectId },
+      include: { members: true },
     });
+    if (!project) {
+      return { success: false, error: "Project not found" };
+    }
+
+    if (project.members.length >= project.maxGroupSize) {
+      return { success: false, error: "Maximum group size reached" };
+    }
+
+    const student = await prisma.user.findFirst({
+      where: {
+        role: "STUDENT",
+        OR: [
+          { id: validated.studentIdentifier },
+          { email: validated.studentIdentifier },
+          { rollNumber: validated.studentIdentifier },
+          { uid: validated.studentIdentifier },
+        ],
+      },
+    });
+
+    if (!student) {
+      return {
+        success: false,
+        error: "This student has not been found on the platform. They must first complete registration on the main portal (tcetcercd.in) and verify their email before they can be added. If they have already done so, ask them to log in to the dashboard once to activate their account.",
+      };
+    }
+
+    if (project.members.some((member) => member.studentId === student.id)) {
+      return { success: false, error: "Student is already a member of this project" };
+    }
+
+    if (validated.role === "LEAD") {
+      await prisma.projectMember.updateMany({
+        where: { projectId: validated.projectId, role: "LEAD" },
+        data: { role: "MEMBER" },
+      });
+    }
+
+    await prisma.projectMember.create({
+      data: {
+        projectId: validated.projectId,
+        studentId: student.id,
+        role: validated.role,
+      },
+    });
+
+    revalidatePath("/admin/projects");
+    revalidatePath(`/student/projects/${validated.projectId}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error("adminAddProjectMember error:", err);
+    return { success: false, error: err?.message || "Failed to add member" };
   }
-
-  await prisma.projectMember.create({
-    data: {
-      projectId: validated.projectId,
-      studentId: student.id,
-      role: validated.role,
-    },
-  });
-
-  revalidatePath("/admin/projects");
-  revalidatePath(`/student/projects/${validated.projectId}`);
-  return { ok: true };
 }
 
 export async function adminUpdateProjectMemberRole(data: z.infer<typeof adminUpdateMemberRoleSchema>) {
@@ -778,45 +787,55 @@ export async function addProjectMember(
   projectId: string,
   studentIdentifier: string,
   role: "LEAD" | "MEMBER" = "MEMBER"
-) {
-  const user = await requireTeacherUser();
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await requireTeacherUser();
 
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    include: { members: true },
-  });
-  if (!project || project.teacherId !== user.id) {
-    throw new Error("Not found or unauthorized");
-  }
-
-  if (project.members.length >= project.maxGroupSize) {
-    throw new Error("Maximum group size reached");
-  }
-
-  const student = await prisma.user.findFirst({
-    where: {
-      role: "STUDENT",
-      OR: [
-        { id: studentIdentifier },
-        { email: studentIdentifier },
-        { rollNumber: studentIdentifier }
-      ]
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { members: true },
+    });
+    if (!project || project.teacherId !== user.id) {
+      return { success: false, error: "Project not found or unauthorized" };
     }
-  });
 
-  if (!student) {
-    throw new Error("Student not found. The student must visit the dashboard at least once before they can be added.");
+    if (project.members.length >= project.maxGroupSize) {
+      return { success: false, error: "Maximum group size reached" };
+    }
+
+    const student = await prisma.user.findFirst({
+      where: {
+        role: "STUDENT",
+        OR: [
+          { id: studentIdentifier },
+          { email: studentIdentifier },
+          { rollNumber: studentIdentifier },
+          { uid: studentIdentifier },
+        ]
+      }
+    });
+
+    if (!student) {
+      return {
+        success: false,
+        error: "This student has not been found on the platform. They must first complete registration on the main portal (tcetcercd.in) and verify their email before they can be added. If they have already done so, ask them to log in to the dashboard once to activate their account.",
+      };
+    }
+
+    if (project.members.some(m => m.studentId === student.id)) {
+      return { success: false, error: "Student is already a member of this project" };
+    }
+
+    await prisma.projectMember.create({
+      data: { projectId, studentId: student.id, role },
+    });
+
+    revalidatePath(`/teacher/projects/${projectId}/members`);
+    return { success: true };
+  } catch (err: any) {
+    console.error("addProjectMember error:", err);
+    return { success: false, error: err?.message || "Failed to add member" };
   }
-
-  if (project.members.some(m => m.studentId === student.id)) {
-    throw new Error("Student is already a member of this project");
-  }
-
-  await prisma.projectMember.create({
-    data: { projectId, studentId: student.id, role },
-  });
-
-  revalidatePath(`/teacher/projects/${projectId}/members`);
 }
 
 export async function removeProjectMember(projectId: string, studentId: string) {
