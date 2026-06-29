@@ -11,7 +11,8 @@ export default async function middleware(req: NextRequest) {
     pathname.startsWith("/majorprojects") ||
     pathname.startsWith("/rblprojects-te") ||
     pathname.startsWith("/api/cron") ||
-    pathname.startsWith("/api/storage");
+    pathname.startsWith("/api/storage") ||
+    pathname.startsWith("/api/internal");
 
   if (isPublicRoute) {
     return NextResponse.next();
