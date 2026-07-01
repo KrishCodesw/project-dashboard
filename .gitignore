@@ -54,3 +54,5 @@ coverage/
 *.tgz
 *.tar.gz
 *.map
+.graymatter
+.omo

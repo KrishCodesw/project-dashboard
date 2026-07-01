@@ -124,12 +124,30 @@ export async function upsertDashboardUser(input: SyncUserInput): Promise<Resolve
     // Resolve any pending project assignments for this email
     const pendingAssignments = await tx.pendingProjectAssignment.findMany({
       where: { email, status: "PENDING" },
-      select: { projectId: true, memberRole: true },
+      include: {
+        project: {
+          select: { id: true, title: true, status: true, teacherId: true },
+        },
+      },
     });
 
-    if (pendingAssignments.length > 0) {
+    // Filter out assignments for COMPLETED or ARCHIVED projects
+    const BLOCKED_STATUSES = ["COMPLETED", "ARCHIVED"];
+    const resolvable = pendingAssignments.filter(
+      (a) => !BLOCKED_STATUSES.includes(a.project.status)
+    );
+
+    if (resolvable.length > 0) {
+      const leadAssignments = resolvable.filter((a) => a.memberRole === "LEAD");
+      for (const a of leadAssignments) {
+        await tx.projectMember.updateMany({
+          where: { projectId: a.projectId, role: "LEAD" },
+          data: { role: "MEMBER" },
+        });
+      }
+
       await tx.projectMember.createMany({
-        data: pendingAssignments.map((a) => ({
+        data: resolvable.map((a) => ({
           projectId: a.projectId,
           studentId: created.id,
           role: a.memberRole,
@@ -137,10 +155,37 @@ export async function upsertDashboardUser(input: SyncUserInput): Promise<Resolve
         skipDuplicates: true,
       });
 
+      const resolvedIds = resolvable.map((a) => a.id);
       await tx.pendingProjectAssignment.updateMany({
-        where: { email, status: "PENDING" },
+        where: { id: { in: resolvedIds } },
         data: { status: "ASSIGNED" },
       });
+
+      // Create in-app notifications for teachers and student
+      const displayName = created.name || created.email;
+      for (const assignment of resolvable) {
+        // Notification for teacher
+        await tx.notification.create({
+          data: {
+            userId: assignment.project.teacherId,
+            type: "PROJECT_UPDATED",
+            title: "Student registered and joined your project",
+            message: `${displayName} has registered and been added to "${assignment.project.title}".`,
+            link: `/teacher/projects/${assignment.projectId}`,
+          },
+        });
+
+        // Notification for student
+        await tx.notification.create({
+          data: {
+            userId: created.id,
+            type: "PROJECT_UPDATED",
+            title: "You've been added to a project",
+            message: `You have been added to "${assignment.project.title}".`,
+            link: `/student/projects/${assignment.projectId}`,
+          },
+        });
+      }
     }
 
     return created;

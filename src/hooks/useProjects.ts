@@ -11,6 +11,7 @@ import {
   requestProjectEdit,
   approveProjectEdit,
   rejectProjectEdit,
+  getPendingMembers,
 } from "@/server/actions/projects";
 
 export function useTeacherProjects(teacherId: string) {
@@ -57,6 +58,18 @@ export function useTags() {
   return useQuery({
     queryKey: ["tags"],
     queryFn: () => getAllTags(),
+  });
+}
+
+export function usePendingMembers(projectId: string) {
+  return useQuery({
+    queryKey: ["pending-members", projectId],
+    queryFn: async () => {
+      const result = await getPendingMembers(projectId);
+      if (!result.success) return [];
+      return result.pending;
+    },
+    enabled: !!projectId,
   });
 }
 

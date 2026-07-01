@@ -13,6 +13,10 @@ import {
   adminDeleteProject,
   approveProjectEdit,
   rejectProjectEdit,
+  getPendingMembers,
+  cancelPendingAssignment,
+  editPendingAssignment,
+  resendPendingInvitation,
 } from "@/server/actions/projects";
 import {
   Trash,
@@ -22,6 +26,10 @@ import {
   UserX,
   CheckCircle,
   XCircle,
+  Send,
+  Clock,
+  X,
+  Mail,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -157,6 +165,130 @@ function toDateInputValue(value?: string | Date | null) {
   return date.toISOString().slice(0, 10);
 }
 
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
+function PendingInvitationsSection({
+  projectId,
+  refreshTrigger,
+  onRefresh,
+}: {
+  projectId: string;
+  refreshTrigger: number;
+  onRefresh: () => void;
+}) {
+  const [pending, setPending] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      const result = await getPendingMembers(projectId);
+      if (!cancelled) {
+        if (result.success) {
+          setPending(result.pending);
+        }
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, refreshTrigger]);
+
+  if (loading && pending.length === 0) {
+    return (
+      <div className="mt-3 border-t pt-3">
+        <p className="text-xs text-muted-foreground">
+          Loading pending invitations...
+        </p>
+      </div>
+    );
+  }
+
+  if (pending.length === 0) return null;
+
+  return (
+    <div className="mt-3 border-t pt-3 space-y-2">
+      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        Pending Invitations ({pending.length})
+      </h4>
+      {pending.map((p: any) => (
+        <div
+          key={p.id}
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 p-2"
+        >
+          <div className="text-sm min-w-0 flex-1">
+            <p className="font-medium flex items-center gap-1.5 truncate">
+              <Mail className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <span className="truncate">{p.email}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Invitation sent · {timeAgo(p.createdAt)}
+              {p.memberRole === "LEAD" ? ` · Role: ${p.memberRole}` : ""}
+              {p.name ? ` · ${p.name}` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={actionLoading === p.id}
+              onClick={async () => {
+                setActionLoading(p.id);
+                const r = await resendPendingInvitation(projectId, p.id);
+                if (r.success) toast.success("Invitation re-sent");
+                else toast.error(r.error || "Failed to resend");
+                setActionLoading(null);
+              }}
+            >
+              {actionLoading === p.id ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Send className="h-3 w-3 mr-1" />
+              )}
+              Resend
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              disabled={actionLoading === p.id}
+              onClick={async () => {
+                if (!confirm("Remove this invitation?")) return;
+                setActionLoading(p.id);
+                const r = await cancelPendingAssignment(projectId, p.id);
+                if (r.success) {
+                  toast.success("Invitation removed");
+                  onRefresh();
+                } else {
+                  toast.error(r.error || "Failed to remove");
+                }
+                setActionLoading(null);
+              }}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminProjectsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -169,6 +301,7 @@ export default function AdminProjectsPage() {
     Record<string, RoleValue>
   >({});
   const [mounted, setMounted] = useState(false);
+  const [refreshPending, setRefreshPending] = useState(0);
 
   // States specifically for the editing dialog to handle dependent dropdowns natively
   const [editDept, setEditDept] = useState<string>("");
@@ -278,7 +411,7 @@ export default function AdminProjectsPage() {
     const role = memberRoleDraft[projectId] ?? "MEMBER";
 
     if (!identifier) {
-      toast.error("Select a student first");
+      toast.error("Enter a student ID or email");
       return;
     }
 
@@ -289,9 +422,14 @@ export default function AdminProjectsPage() {
       role,
     });
     if (result.success) {
-      toast.success("Member added");
+      if (result.pending) {
+        toast.success("Invitation sent. They'll be added when they register.");
+      } else {
+        toast.success("Member added");
+      }
       setMemberDraft((prev) => ({ ...prev, [projectId]: "" }));
       setMemberRoleDraft((prev) => ({ ...prev, [projectId]: "MEMBER" }));
+      setRefreshPending((n) => n + 1);
       await refreshData();
     } else {
       toast.error(result.error || "Failed to add member");
@@ -812,29 +950,29 @@ export default function AdminProjectsPage() {
                     )}
                   </div>
 
+                  <PendingInvitationsSection
+                    projectId={project.id}
+                    refreshTrigger={refreshPending}
+                    onRefresh={() => setRefreshPending((n) => n + 1)}
+                  />
+
                   <div className="grid gap-2 sm:grid-cols-[1fr_150px_auto] sm:items-end">
                     <div className="space-y-1.5">
                       <Label>Add Member</Label>
-                      <Select
+                      <Input
+                        placeholder="Student ID or email@tcetmumbai.in"
                         value={selectedMember}
-                        onValueChange={(value) =>
+                        onChange={(e) =>
                           setMemberDraft((prev) => ({
                             ...prev,
-                            [project.id]: value,
+                            [project.id]: e.target.value,
                           }))
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select student" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {students.map((student: any) => (
-                            <SelectItem key={student.id} value={student.id}>
-                              {student.name} ({student.email})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Enter registered student ID or institutional email for
+                        pending invitation
+                      </p>
                     </div>
                     <div className="space-y-1.5">
                       <Label>Role</Label>
