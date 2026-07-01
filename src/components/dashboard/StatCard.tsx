@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, memo } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,15 @@ const colorMap: Record<string, string> = {
   amber: "bg-muted text-primary",
 };
 
-export function StatCard({ title, value, suffix = "", icon: Icon, color, trend, className }: StatCardProps) {
+export const StatCard = memo(function StatCard({
+  title,
+  value,
+  suffix = "",
+  icon: Icon,
+  color,
+  trend,
+  className,
+}: StatCardProps) {
   const motionValue = useMotionValue(0);
   const springValue = useSpring(motionValue, { stiffness: 100, damping: 30 });
   const [displayValue, setDisplayValue] = useState(0);
@@ -65,4 +73,4 @@ export function StatCard({ title, value, suffix = "", icon: Icon, color, trend, 
       </div>
     </motion.div>
   );
-}
+});

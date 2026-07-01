@@ -202,6 +202,9 @@ model User {
   publicationsEntered   Publication[]              @relation("PublicationEnteredBy")
   publicationsApproved  Publication[]              @relation("PublicationApprovedBy")
 
+  @@index([role])
+  @@index([uid])
+  @@index([role, uid])
   @@map("users")
 }
 
@@ -264,6 +267,7 @@ model PendingProjectAssignment {
   @@unique([projectId, email])
   @@index([email])
   @@index([status])
+  @@index([projectId, status])
   @@map("pending_project_assignments")
 }
 
