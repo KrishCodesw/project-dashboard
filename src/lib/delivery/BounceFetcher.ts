@@ -34,10 +34,9 @@ export async function fetchNew(
   const maxResults = options?.maxResults ?? 10;
   const cutoffDate = await getCutoffDate();
   // Dedup is handled by deliveryStatus IS NULL filter in BounceMatcher.
-  // No is:unread needed — Gmail DSNs often arrive already read.
-  const query = `has:delivery-status after:${cutoffDate}`;
-
-  console.log("[FETCH] Query:", query);
+  // has:delivery-status returns false negatives for Gmail-generated DSNs.
+  // The code-level MIME check (hasDeliveryStatusPart) handles detection.
+  const query = `after:${cutoffDate}`;
 
   const listResponse: { data: { messages?: Array<{ id: string }> } } = await retryWithBackoff(() =>
     gmail.users.messages.list({
@@ -48,37 +47,7 @@ export async function fetchNew(
   );
 
   const messages = listResponse.data.messages ?? [];
-  console.log("[FETCH] has:delivery-status + after returned:", messages.length, "messages");
-
-  if (messages.length === 0) {
-    // Try without has:delivery-status to see what's in the inbox
-    console.log("[FETCH] Trying broad fallback: in:inbox after:", cutoffDate);
-    try {
-      const fallback = await gmail.users.messages.list({
-        userId: "me",
-        q: `in:inbox after:${cutoffDate}`,
-        maxResults: 5,
-      });
-      const fallbackMessages = fallback.data.messages ?? [];
-      console.log("[FETCH] Broad fallback returned:", fallbackMessages.length, "messages");
-      for (const fm of fallbackMessages.slice(0, 3)) {
-        const details = await gmail.users.messages.get({
-          userId: "me",
-          id: fm.id,
-          format: "metadata",
-          metadataHeaders: ["Subject", "From", "To"],
-        });
-        const headers = details.data.payload?.headers ?? [];
-        const subject = headers.find((h: any) => h.name === "Subject")?.value ?? "(no subject)";
-        const from = headers.find((h: any) => h.name === "From")?.value ?? "(no from)";
-        const labelIds = details.data.labelIds ?? [];
-        console.log("[FETCH] Fallback msg:", { id: fm.id, subject, from, labelIds });
-      }
-    } catch (e: any) {
-      console.error("[FETCH] Fallback error:", e.message);
-    }
-    return [];
-  }
+  if (messages.length === 0) return [];
 
   const fetched: FetchedMessage[] = [];
 
