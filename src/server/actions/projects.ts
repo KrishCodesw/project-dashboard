@@ -972,6 +972,9 @@ export async function getPendingMembers(projectId: string) {
       invitedByName: p.invitedBy.name,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
+      deliveryStatus: p.deliveryStatus,
+      bounceReason: p.bounceReason,
+      lastBounceAt: p.lastBounceAt?.toISOString() ?? null,
     })),
   };
 }

@@ -105,6 +105,10 @@ enum EmailQueueStatus {
   FAILED
 }
 
+enum DeliveryStatus {
+  BOUNCED
+}
+
 enum ProjectType {
   INHOUSE
   OUTHOUSE
@@ -255,6 +259,10 @@ model PendingProjectAssignment {
   memberRole  MemberRole @default(MEMBER)
   invitedById String
   status      String     @default("PENDING")
+  deliveryStatus      DeliveryStatus?
+  bounceDiagnosticRaw String?  @db.Text
+  bounceReason        String?
+  lastBounceAt        DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -275,6 +283,7 @@ model EmailQueue {
   status    EmailQueueStatus @default(PENDING)
   attempts  Int              @default(0)
   errorLog  String?          @db.Text
+  messageId String?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 

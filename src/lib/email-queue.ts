@@ -76,10 +76,12 @@ export async function processEmailQueue(batchSize = 50) {
 
       if (result.status === "fulfilled") {
         sent += 1;
+        const sendResult = result.value as unknown as { messageId: string | null };
         await prisma.emailQueue.update({
           where: { id: job.id },
           data: {
             status: EmailQueueStatus.SENT,
+            messageId: sendResult.messageId,
             errorLog: null,
           },
         });

@@ -125,6 +125,24 @@ New notification types:
 - `PROJECT_APPROVED`
 - `PROJECT_PUBLISHED`
 
+### Automatic Invitation Delivery Tracking
+
+- Added full bounce detection pipeline — automatically detects bounced invitation emails via Gmail API
+- 6 single-responsibility detection modules:
+  - **BounceFetcher** — Gmail API client, searches for DSNs via `has:delivery-status`, verifies MIME type, rate-limit backoff
+  - **BounceParser** — Pure DSN extraction (recipient, diagnostic, Original-Message-ID) from RFC 3464/1894 bodies
+  - **BounceValidator** — Binary go/no-go: permanent (5xx) vs temporary (4xx), institutional domain check, SMTP code summarization
+  - **BounceMatcher** — Confidence-based correlation to `PendingProjectAssignment`: HIGH (Message-ID match), MEDIUM (single email), LOW (multiple), NONE
+  - **BounceProcessor** — Updates `PendingProjectAssignment.deliveryStatus = BOUNCED` with diagnostic and reason
+  - **NotificationService** — Creates in-app `PROJECT_UPDATED` notification for the teacher, deduplicated by assignment identity
+- Message-ID from Gmail SMTP is now captured on `EmailQueue` for DSN correlation
+- `PendingProjectAssignment` stores bounce state: `deliveryStatus`, `bounceDiagnosticRaw`, `bounceReason`, `lastBounceAt`
+- Bounce detection runs via `POST /api/cron/detect-bounces` (every 15 min recommended), protected by `EMAIL_QUEUE_CRON_SECRET`
+- New dependency: `googleapis` for Gmail API access with `gmail.modify` scope
+- Teacher-facing bounce UI in MembersTab — ❌ icon + "Invitation delivery failed" + bounce reason
+- Bounce cleared automatically when teacher edits the email address; resend preserves bounce state
+- Gmail OAuth refresh token must be regenerated with `gmail.modify` scope
+
 ### UX Improvements
 
 - Global command palette in topbar (quick navigation/actions)
@@ -147,6 +165,7 @@ New notification types:
 - Framer Motion
 - MinIO (S3-compatible uploads)
 - Nodemailer (SMTP/Gmail)
+- googleapis (Gmail API — DSN detection)
 
 ---
 
@@ -158,8 +177,15 @@ Shared Auth + Access Control
         |---- Core Project Monitoring System
         |
         |---- Showcase System (Submission/Review/Publish)
+        |           |
+        |           -> Admin Control Surface (/admin/showcase)
+        |
+        |---- Automatic Invitation Delivery Tracking
                     |
-                    -> Admin Control Surface (/admin/showcase)
+                    -> Gmail API DSN Detection Pipeline
+                        BounceFetcher → BounceParser → BounceValidator
+                        → BounceMatcher → BounceProcessor → NotificationService
+                        Cron: POST /api/cron/detect-bounces
 ```
 
 ### Integration boundaries
@@ -170,11 +196,13 @@ Shared:
 - Role checks and middleware
 - Notifications
 - Email outbox queue + background processor
+- Gmail OAuth credentials (SMTP + Gmail API DSN detection)
 
 Decoupled:
 
 - Core project domain models and logic
 - Showcase domain models and logic
+- Automatic Invitation Delivery Tracking (Gmail API pipeline + bounce detection modules)
 
 ---
 
@@ -207,6 +235,9 @@ This section captures full system behavior from onboarding to delivery and publi
   - CSV row -> project and user resolution -> member or pending invite -> queued email
 - Outbox lifecycle:
   - PENDING -> PROCESSING -> SENT or FAILED
+- Bounce detection lifecycle:
+  - DSN received in Gmail inbox -> BounceFetcher fetches -> BounceParser extracts -> BounceValidator validates
+  - -> BounceMatcher correlates (HIGH/MEDIUM confidence) -> BounceProcessor updates deliveryStatus -> NotificationService alerts teacher
 - Core project lifecycle:
   - creation -> active execution -> review and progress tracking -> completion
 - Showcase lifecycle:
@@ -312,12 +343,15 @@ Protected:
 - Queue processing flow:
   - claim oldest PENDING rows as PROCESSING
   - send with controlled stagger delay
-  - mark SENT on success
+  - mark SENT on success with Gmail `messageId` captured for DSN correlation
   - requeue or mark FAILED based on retry count
 - Admin controls:
   - Retry Failed
   - Run Queue Now
   - secured cron endpoint at /api/cron/process-emails
+- Bounce detection:
+  - `POST /api/cron/detect-bounces` queries Gmail for unread DSNs and correlates them to `PendingProjectAssignment` records
+  - Matched bounces update `deliveryStatus = BOUNCED` and notify the teacher in-app
 
 ---
 
@@ -446,7 +480,16 @@ Route: /admin/projects
 - `ShowcaseProjectDomain`
 - `ShowcaseAssetKind`
 - `EmailQueueStatus`
+- `DeliveryStatus` (`BOUNCED`) — tracks invitation delivery failures
 - Added notification enum values for showcase events
+
+### New model fields
+
+- `EmailQueue.messageId` — Gmail Message-ID captured on send, used as primary DSN correlation key
+- `PendingProjectAssignment.deliveryStatus` — `null` (no issue) or `BOUNCED` (delivery failed)
+- `PendingProjectAssignment.bounceDiagnosticRaw` — raw SMTP diagnostic from DSN
+- `PendingProjectAssignment.bounceReason` — human-readable bounce summary for teacher UI
+- `PendingProjectAssignment.lastBounceAt` — timestamp of when DSN was detected
 
 ---
 
@@ -517,12 +560,21 @@ Route: /admin/projects
 - `adminUpdateProjectMemberRole()`
 - `adminRemoveProjectMember()`
 
-### New background utility
+### New background utilities
 
 - `processEmailQueue(batchSize = 50)`
   - claims `PENDING` rows as `PROCESSING`
   - sends via pooled Nodemailer transporter
   - marks `SENT` or requeues/fails with `attempts` and `errorLog`
+  - stores Gmail `messageId` on `EmailQueue` on successful send
+- `detectBounces()` — orchestrates the full bounce detection pipeline:
+  1. `BounceFetcher.fetchNew()` — queries Gmail API for unread DSNs (`has:delivery-status is:unread`)
+  2. `BounceParser.parse()` — extracts recipient, diagnostic, Original-Message-ID from DSN body
+  3. `BounceValidator.validate()` — checks permanent failure, institutional domain, required fields
+  4. `BounceMatcher.match()` — correlates DSN to `PendingProjectAssignment` with confidence (HIGH/MEDIUM/LOW/NONE)
+  5. `BounceProcessor.process()` — updates `deliveryStatus = BOUNCED` with diagnostic and reason
+  6. `NotificationService.notifyBounce()` — creates in-app notification for the teacher
+  - Exposed via `POST /api/cron/detect-bounces` (protected by `EMAIL_QUEUE_CRON_SECRET`)
 
 ### New showcase actions
 
@@ -552,9 +604,10 @@ Public:
 - `getPublicShowcaseProjects()`
 - `getPublicShowcaseProjectById()`
 
-### New API route
+### New API routes
 
-- `POST /api/cron/process-emails`
+- `POST /api/cron/process-emails` — process pending email queue
+- `POST /api/cron/detect-bounces` — run bounce detection pipeline (Gmail API DSN search → parse → validate → match → process → notify)
 
 ---
 
@@ -569,6 +622,14 @@ Showcase events now emit notifications for:
 - changes requested
 - approved
 - published
+
+Invitation bounce detection emits a `PROJECT_UPDATED` notification when a bounce is confirmed:
+
+- Recipient: project teacher
+- Title: "Invitation delivery failed"
+- Message: includes the recipient email and bounce reason (e.g., "Mailbox does not exist")
+- Deduplication: at most one notification per `PendingProjectAssignment` record lifetime
+- Edit clears bounce (new record → eligible for fresh notification); resend preserves bounce
 
 ---
 
@@ -585,12 +646,21 @@ Showcase events now emit notifications for:
 - CoE portal handles login; the app relies on the shared JWT cookie
 - Unauthenticated access redirects to the CoE login entry point
 
-### Admin additions
+### Admin / Teacher additions
 
 - Teacher approvals panel for admin activation workflows
 - Email logs panel for outbox status + retry failed
 - Projects management panel for editing project details, mentor, and members
 - Showcase command center and structured review view
+- Bounce state indicators in MembersTab pending cards — teachers see ❌ with bounce reason when delivery fails; edit to clear, resend preserves
+
+### Invitation Bounce State
+
+- Pending invitation cards show bounce state in MembersTab:
+  - Normal: ⏳ clock icon + "Invitation sent · 2 days ago"
+  - Bounced: ❌ red icon + "Invitation delivery failed" + bounce reason (e.g., "Mailbox does not exist")
+- Edit clears bounce; resend preserves bounce state
+- Teachers are auto-notified via in-app notification when a bounce is detected
 
 ### Project Assignment Import
 
@@ -676,7 +746,16 @@ Includes:
 DATABASE_URL="mysql://user:password@host:3306/project_dashboard"
 COE_JWT_SECRET="<coe-jwt-secret>"
 EMAIL_QUEUE_CRON_SECRET="<strong-random-secret>"
+INSTITUTIONAL_EMAIL_DOMAIN="tcetmumbai.in"
 ```
+
+### Institutional Email
+
+```env
+INSTITUTIONAL_EMAIL_DOMAIN="tcetmumbai.in"
+```
+
+`INSTITUTIONAL_EMAIL_DOMAIN` controls which email domains are accepted for student invitations and bounce detection validation. Defaults to `"tcetmumbai.in"` if not set.
 
 ### MinIO Object Storage
 
@@ -709,6 +788,15 @@ SMTP_FROM="your-email@gmail.com"
 Note: SMTP is required for outbound email queue notifications.
 Note: bulk email processing route requires `EMAIL_QUEUE_CRON_SECRET`.
 
+**Gmail API (required for bounce detection):**
+
+The `GOOGLE_REFRESH_TOKEN` must be generated with both scopes:
+
+- `https://mail.google.com/` — existing SMTP scope
+- `https://www.googleapis.com/auth/gmail.modify` — Gmail API DSN detection (read + remove UNREAD label)
+
+After adding `gmail.modify` to the OAuth consent screen, regenerate the refresh token. The old token lacks the required scope and will cause 401 errors.
+
 ---
 
 ## Operational Playbooks
@@ -739,7 +827,15 @@ Note: bulk email processing route requires `EMAIL_QUEUE_CRON_SECRET`.
 - Click Run Queue Now.
 - Verify rows move to SENT or requeue with updated error logs.
 
-### Playbook D: Showcase publishing batch
+### Playbook D: Monitor bounce detection
+
+- Configure cron schedule for `POST /api/cron/detect-bounces` (every 15 min recommended)
+- Regenerate Gmail OAuth refresh token with `gmail.modify` scope if bounce detection returns 401
+- Check `PendingProjectAssignment` records with `deliveryStatus = BOUNCED` to review bounce reasons
+- Teachers receive in-app notification on bounce; instruct them to edit the email address to clear bounce state
+- Monitor for repeated LOW confidence matches (same email, multiple projects) — may indicate CSV assignment collisions
+
+### Playbook E: Showcase publishing batch
 
 - Open /admin/showcase.
 - Filter by submission state.
@@ -774,6 +870,16 @@ Note: bulk email processing route requires `EMAIL_QUEUE_CRON_SECRET`.
 - Member role transitions including LEAD updates.
 - Member removal consistency across project views.
 
+### Bounce detection tests
+
+- DSN parser extracts recipient, diagnostic, and Message-ID from RFC 3464/1894 bodies.
+- Validator rejects temporary failures (4xx), missing recipients, and non-institutional domains.
+- Matcher returns correct confidence: HIGH (Message-ID match), MEDIUM (single email), LOW (multiple), NONE.
+- Full pipeline produces `deliveryStatus = BOUNCED` on permanent failures.
+- Duplicate DSNs are idempotent — second run produces no state change.
+- Edit clears bounce; resend preserves bounce.
+- Notification is created only once per assignment record.
+
 ### Showcase tests
 
 - Submission validation constraints.
@@ -804,7 +910,8 @@ Seeded users are created with placeholder password hashes (not used for CoE auth
 - Restrict DB exposure to private network
 - Use TLS/HTTPS in production
 - Non-ACTIVE CoE statuses are blocked by server guards
-- Protect `/api/cron/process-emails` with a strong secret and never expose it client-side
+- Protect `/api/cron/process-emails` and `/api/cron/detect-bounces` with a strong secret and never expose them client-side
+- Gmail OAuth refresh token must include `gmail.modify` scope for bounce detection; regenerate after scope changes
 
 ---
 
@@ -822,6 +929,25 @@ Seeded users are created with placeholder password hashes (not used for CoE auth
 - Verify SMTP environment variables.
 - Use Run Queue Now in /admin/email-logs.
 - Verify cron token and scheduler invocation for /api/cron/process-emails.
+
+### Bounce detection returns 401 errors
+
+- The Gmail OAuth refresh token was issued without `gmail.modify` scope.
+- Regenerate the refresh token with both `https://mail.google.com/` (SMTP) and `https://www.googleapis.com/auth/gmail.modify` (DSN detection) scopes.
+- Update `GOOGLE_REFRESH_TOKEN` in `.env`.
+
+### Bounce detection finds no DSNs despite sending to invalid addresses
+
+- Verify Gmail API is enabled in GCP Console.
+- Verify `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REFRESH_TOKEN` are set.
+- Verify the sending mailbox actually receives DSNs (check Gmail inbox manually).
+- Check that `is:unread` is not filtering already-read DSNs.
+
+### Pending cards show bouncing but teacher doesn't see notification
+
+- The `PROJECT_UPDATED` notification type must be present in the `NotificationType` enum.
+- Verify cron ran successfully — check `POST /api/cron/detect-bounces` response.
+- The notification is deduplicated per assignment record — only the first detection creates one.
 
 ### Mentor update failures
 
