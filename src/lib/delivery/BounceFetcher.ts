@@ -80,7 +80,7 @@ export async function fetchNew(
     }
 
     const rawBody = extractPlainTextBody(payload);
-    console.log("[FETCH] msg", msg.id, "rawBody length:", rawBody?.length ?? 0, "rawBody (first 200 chars):", rawBody?.slice(0, 200));
+    console.log("[FETCH] msg", msg.id, "rawBody length:", rawBody?.length ?? 0, "rawBody (first 500 chars):", rawBody?.slice(0, 500));
 
     if (!rawBody) {
       console.log("[FETCH] msg", msg.id, "SKIP: no plain text body");
