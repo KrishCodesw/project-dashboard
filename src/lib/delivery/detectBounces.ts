@@ -25,13 +25,10 @@ export async function detectBounces(): Promise<BounceDetectionResult> {
   for (const msg of messages) {
     try {
       // 1. Parse
-      console.log("[PIPELINE] msg", msg.gmailMessageId, "RAW BODY (full):", msg.rawBody);
       const parsed: ParsedBounce = parse(msg.rawBody);
-      console.log("[PIPELINE] msg", msg.gmailMessageId, "Parsed:", JSON.stringify(parsed));
 
       // 2. Validate
       const validated: ValidatedBounce | null = validate(parsed);
-      console.log("[PIPELINE] msg", msg.gmailMessageId, "Validated:", validated ? "yes" : "NO — null (rejected)");
       if (!validated) {
         await markRead(gmail, msg.gmailMessageId);
         continue;
@@ -39,33 +36,35 @@ export async function detectBounces(): Promise<BounceDetectionResult> {
 
       // 3. Match
       const matchResult: MatchResult = await match(validated);
-      console.log("[PIPELINE] msg", msg.gmailMessageId, "Match:", matchResult.matchConfidence, "| method:", matchResult.matchMethod, "| candidates:", matchResult.candidatesFound);
 
       if (matchResult.matchConfidence === "HIGH" || matchResult.matchConfidence === "MEDIUM") {
         await process(matchResult);
         await notifyBounce(matchResult);
         bounced++;
       } else if (matchResult.matchConfidence === "LOW") {
-        console.warn("[BounceDetection] Low confidence match", {
-          recipient: validated.recipient,
-          candidatesFound: matchResult.candidatesFound,
-          gmailMessageId: msg.gmailMessageId,
+        // The email is bouncing — it's undeliverable no matter which project
+        // sent it. Bounce all pending assignments for this email.
+        const { prisma } = await import("@/lib/prisma");
+        const allCandidates = await prisma.pendingProjectAssignment.findMany({
+          where: {
+            email: validated.recipient,
+            status: "PENDING",
+            deliveryStatus: null,
+          },
+          include: { project: { select: { teacherId: true, title: true } } },
         });
-        // Log all candidate project IDs for debugging
-        if (matchResult.assignment) {
-          console.warn("[BounceDetection] LOW matched assignment — unexpected");
-        } else {
-          // Fetch candidate info to help debug
-          try {
-            const { prisma } = await import("@/lib/prisma");
-            const candidates = await prisma.pendingProjectAssignment.findMany({
-              where: { email: validated.recipient, status: "PENDING", deliveryStatus: null },
-              select: { id: true, projectId: true, email: true },
-            });
-            console.warn("[BounceDetection] LOW candidates:", JSON.stringify(candidates));
-          } catch (_) {}
+        for (const candidate of allCandidates) {
+          const forcedMatch: MatchResult = {
+            assignment: candidate,
+            matchConfidence: "LOW",
+            matchMethod: "email_multiple",
+            candidatesFound: allCandidates.length,
+            validatedBounce: validated,
+          };
+          await process(forcedMatch);
+          await notifyBounce(forcedMatch);
+          bounced++;
         }
-        lowConfidence++;
       }
       // NONE: no action needed
 

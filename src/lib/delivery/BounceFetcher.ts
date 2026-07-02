@@ -47,8 +47,6 @@ export async function fetchNew(
   );
 
   const messages = listResponse.data.messages ?? [];
-  console.log("[FETCH] after: query returned", messages.length, "message IDs:", messages.map((m: any) => m.id).join(", "));
-
   if (messages.length === 0) return [];
 
   const fetched: FetchedMessage[] = [];
@@ -63,32 +61,14 @@ export async function fetchNew(
     );
 
     const payload = getResponse.data.payload;
+    if (!payload) continue;
 
-    if (!payload) {
-      console.log("[FETCH] msg", msg.id, "SKIP: no payload");
-      continue;
-    }
-
-    console.log("[FETCH] msg", msg.id, "mimeType:", payload.mimeType, "parts:", payload.parts?.length ?? 0);
-
-    const hasDS = hasDeliveryStatusPart(payload);
-    console.log("[FETCH] msg", msg.id, "hasDS:", hasDS);
-
-    if (!hasDS) {
-      console.log("[FETCH] msg", msg.id, "SKIP: no delivery-status part");
-      continue;
-    }
+    if (!hasDeliveryStatusPart(payload)) continue;
 
     const rawBody = extractPlainTextBody(payload);
-    console.log("[FETCH] msg", msg.id, "rawBody length:", rawBody?.length ?? 0);
-
-    if (!rawBody) {
-      console.log("[FETCH] msg", msg.id, "SKIP: no plain text body");
-      continue;
-    }
+    if (!rawBody) continue;
 
     const headers = extractHeaders(payload);
-    console.log("[FETCH] msg", msg.id, "ACCEPTED. Subject:", headers["Subject"], "| From:", headers["From"]);
 
     fetched.push({
       gmailMessageId: msg.id,
