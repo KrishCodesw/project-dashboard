@@ -1025,7 +1025,44 @@ export async function editPendingAssignment(projectId: string, assignmentId: str
     return { success: false, error: "Cannot edit a resolved or cancelled invitation." };
   }
 
+  // Check if the new email belongs to a registered user
+  const registeredUser = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+  });
+
   try {
+    if (registeredUser) {
+      // User exists — add directly as member, no invitation needed
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        include: { members: true },
+      });
+      if (!project) {
+        return { success: false, error: "Project not found." };
+      }
+      if (project.members.some(m => m.studentId === registeredUser.id)) {
+        return { success: false, error: "This student is already a member of this project." };
+      }
+      if (project.members.length >= project.maxGroupSize) {
+        return { success: false, error: "This project has reached its maximum capacity." };
+      }
+      if (assignment.memberRole === "LEAD") {
+        await prisma.projectMember.updateMany({
+          where: { projectId, role: "LEAD" },
+          data: { role: "MEMBER" },
+        });
+      }
+      await prisma.$transaction([
+        prisma.pendingProjectAssignment.delete({ where: { id: assignmentId } }),
+        prisma.projectMember.create({
+          data: { projectId, studentId: registeredUser.id, role: assignment.memberRole },
+        }),
+      ]);
+      revalidatePath(`/teacher/projects/${projectId}/members`);
+      revalidatePath("/admin/projects");
+      return { success: true };
+    }
+
     await prisma.$transaction(async (tx) => {
       const duplicate = await tx.pendingProjectAssignment.findUnique({
         where: { projectId_email: { projectId, email: normalizedEmail } },

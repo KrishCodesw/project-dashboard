@@ -318,16 +318,9 @@ export function MembersTab({ project }: MembersTabProps) {
                         {p.email}
                       </p>
                       {p.deliveryStatus === "BOUNCED" ? (
-                        <>
-                          <p className="text-xs text-destructive font-medium">
-                            Invitation delivery failed
-                          </p>
-                          {p.bounceReason && (
-                            <p className="text-xs text-destructive/80">
-                              {p.bounceReason}
-                            </p>
-                          )}
-                        </>
+                        <p className="text-xs text-destructive font-medium">
+                          The email you entered was incorrect
+                        </p>
                       ) : (
                         <p className="text-xs text-muted-foreground">
                           Invitation sent · {timeAgo(p.createdAt)}
