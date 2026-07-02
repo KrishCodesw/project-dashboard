@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Crown, Trash2, Loader2, Clock, Mail, X, Edit, Send } from "lucide-react";
+import { Plus, Crown, Trash2, Loader2, Clock, Mail, X, Edit, Send, CircleX } from "lucide-react";
 import { addProjectMember, removeProjectMember, setProjectLead, cancelPendingAssignment, editPendingAssignment, resendPendingInvitation } from "@/server/actions/projects";
 import { usePendingMembers } from "@/hooks/useProjects";
 import { useQueryClient } from "@tanstack/react-query";
@@ -199,7 +199,9 @@ export function MembersTab({ project }: MembersTabProps) {
                   <Label>Student Institutional Email</Label>
                   <Input name="email" type="email" placeholder="student@tcetmumbai.in" required />
                   <p className="text-xs text-muted-foreground">
-                    If the student hasn't registered yet, an invitation will be sent to this email.
+                    Use the student's official institutional email ending in @tcetmumbai.in.
+                    If the invitation cannot be delivered, Gmail will notify you.
+                    Simply edit the student's email address and save to send a new invitation.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -305,15 +307,25 @@ export function MembersTab({ project }: MembersTabProps) {
                 >
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      {p.deliveryStatus === "BOUNCED" ? (
+                        <CircleX className="h-4 w-4 text-destructive" />
+                      ) : (
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </div>
                     <div>
                       <p className="text-sm font-medium flex items-center gap-2">
                         {p.email}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Invitation sent · {timeAgo(p.createdAt)}
-                      </p>
+                      {p.deliveryStatus === "BOUNCED" ? (
+                        <p className="text-xs text-destructive font-medium">
+                          The email you entered was incorrect
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Invitation sent · {timeAgo(p.createdAt)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">

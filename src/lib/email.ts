@@ -54,13 +54,13 @@ export async function sendEmail(options: {
   subject: string;
   html: string;
   requireConfigured?: boolean;
-}) {
+}): Promise<{ messageId: string | null }> {
   if (!process.env.SMTP_HOST) {
     if (options.requireConfigured) {
       throw new Error("SMTP is not configured. Please set SMTP_HOST and SMTP_USER.");
     }
     console.log("[Email] SMTP not configured, skipping:", options.subject);
-    return;
+    return { messageId: null };
   }
 
   if (options.requireConfigured) {
@@ -82,12 +82,13 @@ export async function sendEmail(options: {
   }
 
   try {
-    return await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: getFromHeader(),
       to: options.to,
       subject: options.subject,
       html: options.html,
     });
+    return { messageId: info.messageId || null };
   } catch (error: any) {
     const message = error?.message || "Unknown SMTP error";
     throw new Error(`Failed to send email: ${message}`);
