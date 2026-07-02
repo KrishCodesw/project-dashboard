@@ -25,6 +25,7 @@ export async function detectBounces(): Promise<BounceDetectionResult> {
   for (const msg of messages) {
     try {
       // 1. Parse
+      console.log("[PIPELINE] msg", msg.gmailMessageId, "RAW BODY (full):", msg.rawBody);
       const parsed: ParsedBounce = parse(msg.rawBody);
       console.log("[PIPELINE] msg", msg.gmailMessageId, "Parsed:", JSON.stringify(parsed));
 
