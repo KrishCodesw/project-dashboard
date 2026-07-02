@@ -51,6 +51,20 @@ export async function detectBounces(): Promise<BounceDetectionResult> {
           candidatesFound: matchResult.candidatesFound,
           gmailMessageId: msg.gmailMessageId,
         });
+        // Log all candidate project IDs for debugging
+        if (matchResult.assignment) {
+          console.warn("[BounceDetection] LOW matched assignment — unexpected");
+        } else {
+          // Fetch candidate info to help debug
+          try {
+            const { prisma } = await import("@/lib/prisma");
+            const candidates = await prisma.pendingProjectAssignment.findMany({
+              where: { email: validated.recipient, status: "PENDING", deliveryStatus: null },
+              select: { id: true, projectId: true, email: true },
+            });
+            console.warn("[BounceDetection] LOW candidates:", JSON.stringify(candidates));
+          } catch (_) {}
+        }
         lowConfidence++;
       }
       // NONE: no action needed
