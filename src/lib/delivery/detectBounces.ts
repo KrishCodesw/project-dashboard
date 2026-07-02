@@ -26,9 +26,11 @@ export async function detectBounces(): Promise<BounceDetectionResult> {
     try {
       // 1. Parse
       const parsed: ParsedBounce = parse(msg.rawBody);
+      console.log("[PIPELINE] msg", msg.gmailMessageId, "Parsed:", JSON.stringify(parsed));
 
       // 2. Validate
       const validated: ValidatedBounce | null = validate(parsed);
+      console.log("[PIPELINE] msg", msg.gmailMessageId, "Validated:", validated ? "yes" : "NO — null (rejected)");
       if (!validated) {
         await markRead(gmail, msg.gmailMessageId);
         continue;
@@ -36,6 +38,7 @@ export async function detectBounces(): Promise<BounceDetectionResult> {
 
       // 3. Match
       const matchResult: MatchResult = await match(validated);
+      console.log("[PIPELINE] msg", msg.gmailMessageId, "Match:", matchResult.matchConfidence, "| method:", matchResult.matchMethod, "| candidates:", matchResult.candidatesFound);
 
       if (matchResult.matchConfidence === "HIGH" || matchResult.matchConfidence === "MEDIUM") {
         await process(matchResult);
