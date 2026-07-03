@@ -246,13 +246,23 @@ function parseAssignmentCsv(csvContent: string): CsvAssignmentRow[] {
   return Array.from(deduped.values());
 }
 
-function buildAssignmentEmailBody(projectTitle: string, loginOrRegisterUrl: string): string {
+function buildCoeLoginUrl(): string {
+  const baseUrl = (process.env.COE_MAIN_URL || "https://tcetcercd.in").replace(/\/+$/, "");
+  const dashboardUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  return `${baseUrl}/login?callbackUrl=${encodeURIComponent(`${dashboardUrl}/student/projects`)}`;
+}
+
+function buildAssignmentEmailBody(projectTitle: string, loginOrRegisterUrl: string, invitedByName?: string): string {
+  const invitedByLine = invitedByName
+    ? `<p style="margin: 0 0 12px;">Invited by <strong>${invitedByName}</strong>.</p>`
+    : "";
   return `
     <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #111827;">
       <h2 style="color: #2563eb; margin-bottom: 12px;">Project Assignment Notification</h2>
       <p style="margin: 0 0 12px;">You have been assigned to <strong>${projectTitle}</strong>.</p>
-      <p style="margin: 0 0 12px;">Please continue using the link below:</p>
-      <p style="margin: 0 0 12px;"><a href="${loginOrRegisterUrl}" style="color: #2563eb;">${loginOrRegisterUrl}</a></p>
+      ${invitedByLine}
+      <p style="margin: 0 0 12px;">Please log in to <strong>tcetcercd.in</strong> to join your project and get started.</p>
+      <p style="margin: 0 0 12px;"><a href="${loginOrRegisterUrl}" style="color: #2563eb;">Log in to accept assignment</a></p>
       <p style="margin: 0; color: #6b7280; font-size: 13px;">If this assignment is unexpected, contact your administrator.</p>
     </div>
   `;
@@ -260,6 +270,8 @@ function buildAssignmentEmailBody(projectTitle: string, loginOrRegisterUrl: stri
 
 export async function adminUploadProjectAssignments(data: z.infer<typeof adminUploadAssignmentsSchema>) {
   const adminId = await requireAdminSession();
+  const admin = await prisma.user.findUnique({ where: { id: adminId }, select: { name: true } });
+  const invitedByName = admin?.name || "Administrator";
 
   const validated = adminUploadAssignmentsSchema.parse(data);
   const rows = parseAssignmentCsv(validated.csvContent);
@@ -360,18 +372,14 @@ export async function adminUploadProjectAssignments(data: z.infer<typeof adminUp
     });
   }
 
-  const appUrl = process.env.NEXTAUTH_URL;
+  const actionUrl = buildCoeLoginUrl();
   const emailJobs = resolvedRows.map((row) => {
     const project = projectsByLowerTitle.get(row.projectName.toLowerCase().trim())!;
-    const existingUser = existingByEmail.has(row.email);
-    const actionUrl = existingUser
-      ? `${appUrl}/login`
-      : `${appUrl}/register?email=${encodeURIComponent(row.email)}`;
 
     return {
       to: row.email,
       subject: `Project Assignment: ${project.title}`,
-      body: buildAssignmentEmailBody(project.title, actionUrl),
+      body: buildAssignmentEmailBody(project.title, actionUrl, invitedByName),
       status: "PENDING" as const,
     };
   });
@@ -547,6 +555,8 @@ export async function adminUpdateProjectMentor(data: z.infer<typeof adminUpdateM
 export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemberSchema>) {
   try {
     const adminId = await requireAdminSession();
+    const admin = await prisma.user.findUnique({ where: { id: adminId }, select: { name: true } });
+    const invitedByName = admin?.name || "Administrator";
     const validated = adminUpsertMemberSchema.parse(data);
 
     const project = await prisma.project.findUnique({
@@ -632,14 +642,14 @@ export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemb
       });
 
       // Queue email outside transaction
-      const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
       await prisma.emailQueue.create({
         data: {
           to: normalizedEmail,
           subject: `Project Assignment: ${project.title}`,
           body: buildAssignmentEmailBody(
             project.title,
-            `${appUrl}/register?email=${encodeURIComponent(normalizedEmail)}`
+            buildCoeLoginUrl(),
+            invitedByName
           ),
           status: "PENDING",
         },
@@ -918,14 +928,14 @@ export async function addProjectMember(
       });
 
       // Queue email outside transaction
-      const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
       await prisma.emailQueue.create({
         data: {
           to: normalizedEmail,
           subject: `Project Assignment: ${project.title}`,
           body: buildAssignmentEmailBody(
             project.title,
-            `${appUrl}/register?email=${encodeURIComponent(normalizedEmail)}`
+            buildCoeLoginUrl(),
+            user.name
           ),
           status: "PENDING",
         },
@@ -1095,14 +1105,14 @@ export async function editPendingAssignment(projectId: string, assignmentId: str
         where: { id: assignmentId },
       });
 
-      const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
       await tx.emailQueue.create({
         data: {
           to: normalizedEmail,
           subject: `Project Assignment: ${assignment.project.title}`,
           body: buildAssignmentEmailBody(
             assignment.project.title,
-            `${appUrl}/register?email=${encodeURIComponent(normalizedEmail)}`
+            buildCoeLoginUrl(),
+            user.name
           ),
           status: "PENDING",
         },
@@ -1142,7 +1152,6 @@ export async function resendPendingInvitation(projectId: string, assignmentId: s
     };
   }
 
-  const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
   await prisma.$transaction([
     prisma.emailQueue.create({
       data: {
@@ -1150,7 +1159,8 @@ export async function resendPendingInvitation(projectId: string, assignmentId: s
         subject: `Project Assignment: ${assignment.project.title}`,
         body: buildAssignmentEmailBody(
           assignment.project.title,
-          `${appUrl}/register?email=${encodeURIComponent(assignment.email)}`
+          buildCoeLoginUrl(),
+          user.name
         ),
         status: "PENDING",
       },
