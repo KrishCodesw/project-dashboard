@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/coe-guard";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import type { PaginatedResult } from "@/lib/pagination";
+import { buildPagination } from "@/lib/pagination";
 
 const createUserSchema = z.object({
   name: z.string().min(2),
@@ -49,24 +51,60 @@ export async function toggleUserActive(userId: string) {
   revalidatePath("/admin/users");
 }
 
-export async function getUsers(role?: string) {
+export async function getUsers(
+  role?: string,
+  params?: { page?: number; pageSize?: number; search?: string },
+): Promise<PaginatedResult<any>> {
   await requireRole("ADMIN");
 
-  return prisma.user.findMany({
-    where: role ? { role: role as any } : undefined,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      department: true,
-      rollNumber: true,
-      isActive: true,
-      createdAt: true,
-      _count: { select: { memberships: true, managedProjects: true } },
-    },
-    orderBy: { createdAt: "desc" },
+  const { page, pageSize, skip, take } = buildPagination({
+    page: params?.page ?? 1,
+    pageSize: params?.pageSize ?? 50,
   });
+
+  const where: any = {};
+  if (role) where.role = role;
+  if (params?.search) {
+    const q = params.search.toLowerCase();
+    where.OR = [
+      { name: { contains: q } },
+      { email: { contains: q } },
+    ];
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      skip,
+      take,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        department: true,
+        rollNumber: true,
+        isActive: true,
+        createdAt: true,
+        _count: { select: { memberships: true, managedProjects: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+}
+
+export async function getUserCounts() {
+  await requireRole("ADMIN");
+  const [total, students, teachers, admins] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { role: "STUDENT" } }),
+    prisma.user.count({ where: { role: "TEACHER" } }),
+    prisma.user.count({ where: { role: "ADMIN" } }),
+  ]);
+  return { total, students, teachers, admins };
 }
 
 export async function getStudents() {

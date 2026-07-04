@@ -9,6 +9,8 @@ import { revalidatePath } from "next/cache";
 import { isInstitutionalEmail, getInstitutionalDomain } from "@/lib/validation";
 import { createBulkNotifications } from "@/lib/notifications";
 import { updateProjectCompletion } from "@/lib/completion";
+import { buildPagination } from "@/lib/pagination";
+import type { PaginatedResult } from "@/lib/pagination";
 
 const createProjectSchema = z.object({
   title: z.string().min(3),
@@ -422,11 +424,38 @@ export async function getAdminAssignableProjects() {
   });
 }
 
-export async function getAdminProjectsManagementData() {
+export async function getAdminProjectsManagementData(params?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+}) {
   await requireAdminSession();
 
-  const [projects, teachers, students] = await Promise.all([
+  const { page, pageSize, skip, take } = buildPagination({
+    page: params?.page ?? 1,
+    pageSize: params?.pageSize ?? 20,
+  });
+
+  const where: any = {};
+  if (params?.search) {
+    const q = params.search;
+    where.OR = [
+      { title: { contains: q } },
+      { domain: { contains: q } },
+      { department: { contains: q } },
+      { teacher: { name: { contains: q } } },
+    ];
+  }
+  if (params?.status) {
+    where.status = params.status;
+  }
+
+  const [projects, total, teachers, students] = await Promise.all([
     prisma.project.findMany({
+      where,
+      skip,
+      take,
       select: {
         id: true,
         title: true,
@@ -440,7 +469,6 @@ export async function getAdminProjectsManagementData() {
         startDate: true,
         endDate: true,
         updatedAt: true,
-        // MUST ADD THESE TWO LINES:
         hasPendingEdit: true,
         pendingEditData: true,
         teacher: {
@@ -466,8 +494,8 @@ export async function getAdminProjectsManagementData() {
         },
       },
       orderBy: { updatedAt: "desc" },
-      take: 500,
     }),
+    prisma.project.count({ where }),
     prisma.user.findMany({
       where: { role: "TEACHER", isActive: true },
       select: { id: true, name: true, email: true },
@@ -485,6 +513,10 @@ export async function getAdminProjectsManagementData() {
     projects,
     teachers,
     students,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
   };
 }
 
@@ -1237,24 +1269,53 @@ export async function setProjectLead(projectId: string, studentId: string) {
   revalidatePath(`/teacher/projects/${projectId}/members`);
 }
 
-export async function getTeacherProjects(teacherId: string) {
-  return prisma.project.findMany({
-    where: { teacherId },
-    include: {
-      members: {
-        include: {
-          student: {
-            select: { id: true, name: true, avatarUrl: true },
+export async function getTeacherProjects(
+  teacherId: string,
+  params?: { page?: number; pageSize?: number; search?: string; status?: string; rblFilter?: string },
+): Promise<PaginatedResult<any>> {
+  const { page, pageSize, skip, take } = buildPagination({
+    page: params?.page ?? 1,
+    pageSize: params?.pageSize ?? 20,
+  });
+
+  const where: any = { teacherId };
+  if (params?.status && params.status !== "ALL") where.status = params.status;
+  if (params?.rblFilter === "RBL") where.isRblProject = true;
+  else if (params?.rblFilter === "STANDARD") where.isRblProject = false;
+  if (params?.search) {
+    const q = params.search.toLowerCase();
+    where.OR = [
+      { title: { contains: q } },
+      { domain: { contains: q } },
+      { department: { contains: q } },
+      { groupNo: { contains: q } },
+    ];
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.project.findMany({
+      where,
+      skip,
+      take,
+      include: {
+        members: {
+          include: {
+            student: {
+              select: { id: true, name: true, avatarUrl: true },
+            },
           },
         },
+        tags: { include: { tag: true } },
+        _count: {
+          select: { tasks: true, milestones: true, reviews: true, files: true },
+        },
       },
-      tags: { include: { tag: true } },
-      _count: {
-        select: { tasks: true, milestones: true, reviews: true, files: true },
-      },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.project.count({ where }),
+  ]);
+
+  return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
 export async function getProjectById(projectId: string) {
@@ -1279,29 +1340,44 @@ export async function getProjectById(projectId: string) {
   });
 }
 
-export async function getStudentProjects(studentId: string) {
-  return prisma.project.findMany({
-    where: {
-      members: { some: { studentId } },
-    },
-    include: {
-      teacher: {
-        select: { id: true, name: true, department: true },
-      },
-      members: {
-        include: {
-          student: {
-            select: { id: true, name: true, avatarUrl: true },
+export async function getStudentProjects(
+  studentId: string,
+  params?: { page?: number; pageSize?: number },
+): Promise<PaginatedResult<any>> {
+  const { page, pageSize, skip, take } = buildPagination({
+    page: params?.page ?? 1,
+    pageSize: params?.pageSize ?? 20,
+  });
+
+  const where = { members: { some: { studentId } } };
+
+  const [data, total] = await Promise.all([
+    prisma.project.findMany({
+      where,
+      skip,
+      take,
+      include: {
+        teacher: {
+          select: { id: true, name: true, department: true },
+        },
+        members: {
+          include: {
+            student: {
+              select: { id: true, name: true, avatarUrl: true },
+            },
           },
         },
+        tags: { include: { tag: true } },
+        _count: {
+          select: { tasks: true, milestones: true, reviews: true, files: true },
+        },
       },
-      tags: { include: { tag: true } },
-      _count: {
-        select: { tasks: true, milestones: true, reviews: true, files: true },
-      },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.project.count({ where }),
+  ]);
+
+  return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
 export async function getTeacherDashboardStats(teacherId: string) {

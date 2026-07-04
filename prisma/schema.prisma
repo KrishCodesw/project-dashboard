@@ -207,6 +207,7 @@ model User {
   publicationsApproved  Publication[]              @relation("PublicationApprovedBy")
 
   @@map("users")
+  @@index([role, isActive])
 }
 
 model Project {
@@ -248,6 +249,9 @@ model Project {
 
   @@index([teacherId])
   @@index([status])
+  @@index([teacherId, status])
+  @@index([title])
+  @@index([department, status])
   @@map("projects")
 }
 

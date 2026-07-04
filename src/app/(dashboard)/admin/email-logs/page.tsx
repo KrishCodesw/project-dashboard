@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getEmailQueueLogs, retryFailedEmails, runEmailQueueNow } from "@/server/actions/email-queue";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { toast } from "sonner";
 
 const statusClassMap: Record<string, string> = {
@@ -16,9 +18,10 @@ const statusClassMap: Record<string, string> = {
 
 export default function AdminEmailLogsPage() {
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "email-logs"],
-    queryFn: () => getEmailQueueLogs(),
+    queryKey: ["admin", "email-logs", page],
+    queryFn: () => getEmailQueueLogs({ page, pageSize: 50 }),
   });
 
   async function onRetryFailed() {
@@ -65,9 +68,9 @@ export default function AdminEmailLogsPage() {
           <CardTitle>Outgoing Queue</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+            {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading email logs...</p>
-          ) : (data ?? []).length === 0 ? (
+          ) : (data?.data ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">No email queue records yet.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -82,7 +85,7 @@ export default function AdminEmailLogsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(data ?? []).map((row) => (
+                  {(data?.data ?? []).map((row) => (
                     <tr key={row.id} className="border-b align-top">
                       <td className="px-3 py-3">{row.to}</td>
                       <td className="px-3 py-3">{row.subject}</td>
@@ -103,6 +106,15 @@ export default function AdminEmailLogsPage() {
           )}
         </CardContent>
       </Card>
+      {data && (
+        <PaginationBar
+          page={data.page}
+          totalPages={data.totalPages}
+          total={data.total}
+          pageSize={data.pageSize}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   );
 }

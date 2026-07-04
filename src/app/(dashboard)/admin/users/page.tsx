@@ -12,29 +12,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, Loader2, UserCheck, UserX } from "lucide-react";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { toast } from "sonner";
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  const { data: users, isLoading } = useQuery({
-    queryKey: ["admin", "users", roleFilter === "ALL" ? undefined : roleFilter],
-    queryFn: () => getUsers(roleFilter === "ALL" ? undefined : roleFilter),
+  const { data: result, isLoading } = useQuery({
+    queryKey: ["admin", "users", roleFilter === "ALL" ? undefined : roleFilter, page, search],
+    queryFn: () =>
+      getUsers(roleFilter === "ALL" ? undefined : roleFilter, {
+        page,
+        pageSize,
+        search: search || undefined,
+      }),
   });
 
-  const filtered = React.useMemo(() => {
-    if (!search) return users ?? [];
-    const q = search.toLowerCase();
-    return (users ?? []).filter(
-      (u: any) =>
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q)
-    );
-  }, [users, search]);
+  const users = result?.data ?? [];
+  const total = result?.total ?? 0;
+  const totalPages = result?.totalPages ?? 0;
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -134,11 +136,14 @@ export default function AdminUsersPage() {
           <Input
             placeholder="Search users..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="pl-9"
           />
         </div>
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
+        <Select value={roleFilter} onValueChange={(val) => { setRoleFilter(val); setPage(1); }}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Role" />
           </SelectTrigger>
@@ -176,7 +181,7 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map((user: any) => (
+              {users.map((user: any) => (
                 <tr key={user.id} className="hover:bg-secondary/10 transition-colors">
                   <td className="p-4 font-medium">{user.name}</td>
                   <td className="p-4 text-muted-foreground">{user.email}</td>
@@ -229,6 +234,15 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </motion.div>
+      )}
+      {!isLoading && (
+        <PaginationBar
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
       )}
     </div>
   );
