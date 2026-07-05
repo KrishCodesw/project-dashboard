@@ -191,6 +191,7 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  lastVisitedAt DateTime?
 
   // Relations
   managedProjects       Project[]                  @relation("TeacherProjects")
@@ -235,6 +236,7 @@ model Project {
   sdg                  SDG?
   groupNo              String?
   isRblProject         Boolean             @default(false)
+  isPinned             Boolean             @default(false)
 
   // Relations
   teacher            User                       @relation("TeacherProjects", fields: [teacherId], references: [id])
@@ -302,6 +304,7 @@ model ProjectMember {
   studentId String
   role      MemberRole @default(MEMBER)
   joinedAt  DateTime   @default(now())
+  isPinned  Boolean    @default(false)
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   student User    @relation(fields: [studentId], references: [id])
