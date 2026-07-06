@@ -97,10 +97,6 @@ export default async function middleware(req: NextRequest) {
   requestHeaders.set("x-coe-role", payload.role);
   requestHeaders.set("x-coe-status", payload.status);
 
-  if (payload.isImpersonating) {
-    requestHeaders.set("x-coe-impersonating", "true");
-  }
-
   return NextResponse.next({
     request: {
       headers: requestHeaders,

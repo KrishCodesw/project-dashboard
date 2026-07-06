@@ -8,10 +8,6 @@ export interface CoeTokenPayload {
   name?: string;
   role: CoeRole;
   status: CoeStatus;
-  isImpersonating?: true;
-  impersonation?: {
-    sessionId: string;
-  };
 }
 
 export function mapCoERoleToDashboard(role: string | null | undefined) {
@@ -38,22 +34,11 @@ export async function verifyCoEToken(
     const name = payload.name as string | undefined;
     const role = payload.role as CoeRole | undefined;
     const status = payload.status as CoeStatus | undefined;
-    const isImpersonating = payload.isImpersonating as true | undefined;
-    const impersonationSessionId = (payload.impersonation as { sessionId?: string } | undefined)?.sessionId;
 
     if (!email || !role || !status) return null;
     if (!mapCoERoleToDashboard(role)) return null;
 
-    return {
-      email,
-      name,
-      role,
-      status,
-      ...(isImpersonating && {
-        isImpersonating: true as const,
-        impersonation: impersonationSessionId ? { sessionId: impersonationSessionId } : undefined,
-      }),
-    };
+    return { email, name, role, status };
   } catch {
     return null;
   }

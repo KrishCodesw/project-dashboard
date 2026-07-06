@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { NotificationPanel } from "@/components/layout/NotificationPanel";
-import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import { useUIStore } from "@/store/ui.store";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
@@ -16,12 +15,6 @@ interface DashboardShellProps {
   userRole: "ADMIN" | "TEACHER" | "STUDENT";
   userImage?: string | null;
   children: React.ReactNode;
-  isImpersonating?: boolean;
-  impersonationSessionInfo?: {
-    sessionId: string;
-    impersonatedBy: { name: string; email: string };
-    impersonatingAs: { name: string; email: string; role: string; uid?: string };
-  } | null;
 }
 
 export function DashboardShell({
@@ -30,8 +23,6 @@ export function DashboardShell({
   userRole,
   userImage,
   children,
-  isImpersonating = false,
-  impersonationSessionInfo = null,
 }: DashboardShellProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
@@ -43,7 +34,6 @@ export function DashboardShell({
 
   return (
     <div className="dashboard-surface min-h-screen bg-background">
-      <ImpersonationBanner isImpersonating={isImpersonating} sessionInfo={impersonationSessionInfo} />
       <Sidebar role={userRole} userName={userName} />
       <Topbar userId={userId} userName={userName} userRole={userRole} userImage={userImage} />
       <NotificationPanel userId={userId} />
