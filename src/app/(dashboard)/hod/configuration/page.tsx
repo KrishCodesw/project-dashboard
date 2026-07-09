@@ -1,8 +1,5 @@
 import { requireHOD } from "@/lib/coe-guard";
-import {
-  getDepartmentConfiguration,
-  updateDepartmentConfiguration,
-} from "@/server/actions/hod-dashboard";
+import { getDepartmentConfiguration } from "@/server/actions/hod-dashboard";
 import { ConfigForm } from "./ConfigForm";
 
 export default async function DepartmentConfigurationPage() {
@@ -19,10 +16,7 @@ export default async function DepartmentConfigurationPage() {
       </div>
 
       <div className="rounded-[2px] border border-border bg-card p-5 max-w-lg">
-        <ConfigForm
-          config={config}
-          onSave={updateDepartmentConfiguration}
-        />
+        <ConfigForm config={config} />
       </div>
     </div>
   );

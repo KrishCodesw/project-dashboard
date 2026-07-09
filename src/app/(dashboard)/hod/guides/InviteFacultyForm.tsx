@@ -2,15 +2,12 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { inviteFacultyGuide } from "@/server/actions/hod-dashboard";
 
-export function InviteFacultyForm({
-  onInvite,
-}: {
-  onInvite: (formData: FormData) => Promise<{ success: boolean; error: string | null }>;
-}) {
+export function InviteFacultyForm() {
   const [state, formAction, pending] = useActionState(
     async (_prev: { success: boolean; error: string | null } | null, formData: FormData) => {
-      return onInvite(formData);
+      return inviteFacultyGuide(formData);
     },
     null,
   );

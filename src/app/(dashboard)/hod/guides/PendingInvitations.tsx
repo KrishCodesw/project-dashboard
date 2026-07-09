@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { cancelInvitation } from "@/server/actions/hod-dashboard";
 
 type Invitation = {
   id: string;
@@ -12,13 +13,7 @@ type Invitation = {
   createdAt: Date;
 };
 
-export function PendingInvitations({
-  invitations,
-  onCancel,
-}: {
-  invitations: Invitation[];
-  onCancel: (id: string) => Promise<void>;
-}) {
+export function PendingInvitations({ invitations }: { invitations: Invitation[] }) {
   const [pendingId, startTransition] = useTransition();
 
   if (invitations.length === 0) {
@@ -50,7 +45,7 @@ export function PendingInvitations({
             disabled={pendingId}
             onClick={() => {
               startTransition(async () => {
-                await onCancel(inv.id);
+                await cancelInvitation(inv.id);
               });
             }}
             className="text-destructive hover:text-destructive"

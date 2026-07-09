@@ -1,9 +1,5 @@
 import { requireHOD } from "@/lib/coe-guard";
-import {
-  getDepartmentGuides,
-  inviteFacultyGuide,
-  cancelInvitation,
-} from "@/server/actions/hod-dashboard";
+import { getDepartmentGuides } from "@/server/actions/hod-dashboard";
 import { InviteFacultyForm } from "./InviteFacultyForm";
 import { PendingInvitations } from "./PendingInvitations";
 
@@ -47,15 +43,12 @@ export default async function FacultyGuidesPage() {
 
       <div className="rounded-[2px] border border-border bg-card p-5">
         <h2 className="text-sm font-semibold mb-4">Pending Invitations</h2>
-        <PendingInvitations
-          invitations={data.pendingInvitations}
-          onCancel={cancelInvitation}
-        />
+        <PendingInvitations invitations={data.pendingInvitations} />
       </div>
 
       <div className="rounded-[2px] border border-border bg-card p-5">
         <h2 className="text-sm font-semibold mb-4">Invite New Faculty</h2>
-        <InviteFacultyForm onInvite={inviteFacultyGuide} />
+        <InviteFacultyForm />
       </div>
     </div>
   );

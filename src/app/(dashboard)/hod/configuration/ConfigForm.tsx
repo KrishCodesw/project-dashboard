@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { updateDepartmentConfiguration } from "@/server/actions/hod-dashboard";
 
 type ConfigData = {
   academicYear: string;
@@ -12,16 +13,10 @@ type ConfigData = {
   updatedAt: Date | null;
 };
 
-export function ConfigForm({
-  config,
-  onSave,
-}: {
-  config: ConfigData;
-  onSave: (formData: FormData) => Promise<{ success: boolean }>;
-}) {
+export function ConfigForm({ config }: { config: ConfigData }) {
   const [state, formAction, pending] = useActionState(
     async (_prev: { success: boolean } | null, formData: FormData) => {
-      return onSave(formData);
+      return updateDepartmentConfiguration(formData);
     },
     null,
   );
