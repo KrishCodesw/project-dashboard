@@ -189,6 +189,7 @@ model User {
   rollNumber   String?
   uid          String?
   isHod        Boolean  @default(false)
+  isGuide      Boolean  @default(false)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -209,6 +210,8 @@ model User {
   publicationsApproved  Publication[]              @relation("PublicationApprovedBy")
   departmentConfigs     DepartmentConfiguration[]
   guideInvitationsSent  FacultyGuideInvitation[]
+  departmentGuides      DepartmentGuide[]              @relation("DepartmentGuideMember")
+  departmentGuidesAdded DepartmentGuide[]              @relation("DepartmentGuideAddedBy")
 
   @@map("users")
   @@index([role, isActive])
@@ -663,4 +666,18 @@ model FacultyGuideInvitation {
   @@index([department, status])
   @@index([status])
   @@map("faculty_guide_invitations")
+}
+
+model DepartmentGuide {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("DepartmentGuideMember", fields: [userId], references: [id], onDelete: Cascade)
+  department String
+  addedById  String?
+  addedBy    User?    @relation("DepartmentGuideAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, department])
+  @@index([department])
+  @@map("department_guides")
 }

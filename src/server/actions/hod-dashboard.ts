@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireHOD } from "@/lib/coe-guard";
 import { getCurrentAcademicYear } from "@/lib/academic-year";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 export async function getHODDashboardData() {
   const user = await requireHOD();
@@ -40,18 +41,20 @@ export async function getDepartmentGuides() {
   const dept = user.department;
   if (!dept) throw new Error("HOD has no department assigned");
 
-  const guides = await prisma.user.findMany({
-    where: { department: dept, role: "TEACHER", isActive: true },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      isActive: true,
-      _count: { select: { managedProjects: true } },
+  const assignments = await prisma.departmentGuide.findMany({
+    where: { department: dept },
+    include: {
+      user: {
+        select: {
+          id: true, name: true, email: true, isActive: true,
+          _count: { select: { managedProjects: true } },
+        },
+      },
     },
-    orderBy: { name: "asc" },
+    orderBy: { createdAt: "desc" },
   });
 
+  const guides = assignments.map((a) => ({ ...a.user }));
   const pendingInvitations = await prisma.facultyGuideInvitation.findMany({
     where: { department: dept },
     orderBy: { createdAt: "desc" },
@@ -87,6 +90,18 @@ export async function cancelInvitation(formData: FormData) {
   await prisma.facultyGuideInvitation.update({
     where: { id: invitationId },
     data: { status: "CANCELLED" },
+  });
+  revalidatePath("/hod/guides");
+}
+
+export async function removeGuide(formData: FormData) {
+  const user = await requireHOD();
+  const dept = user.department;
+  if (!dept) throw new Error("HOD has no department assigned");
+  const userId = formData.get("userId") as string;
+  if (!userId) throw new Error("Missing userId");
+  await prisma.departmentGuide.deleteMany({
+    where: { userId, department: dept },
   });
   revalidatePath("/hod/guides");
 }
@@ -148,33 +163,44 @@ export async function addGuide(formData: FormData) {
   if (!dept) throw new Error("HOD has no department assigned");
   const email = (formData.get("email") as string || "").toLowerCase().trim();
   if (!email || !email.includes("@")) {
-    throw new Error("Valid email is required");
+    return redirect("/hod/guides?msg=invalid_email");
   }
 
   const existingUser = await prisma.user.findFirst({
-    where: { email, role: "TEACHER" },
-    select: { id: true, department: true, role: true, isActive: true },
+    where: { email },
+    select: { id: true, role: true, isActive: true },
   });
 
   if (existingUser) {
-    if (!existingUser.isActive) {
-      throw new Error("This faculty account is inactive");
+    if (existingUser.role !== "TEACHER") {
+      return redirect("/hod/guides?msg=not_teacher");
     }
-    revalidatePath("/hod/guides");
-    return;
+    if (!existingUser.isActive) {
+      return redirect("/hod/guides?msg=inactive");
+    }
+    const existingAssignment = await prisma.departmentGuide.findUnique({
+      where: { userId_department: { userId: existingUser.id, department: dept } },
+    });
+    if (existingAssignment) {
+      return redirect("/hod/guides?msg=already_guide");
+    }
+    await prisma.departmentGuide.create({
+      data: { userId: existingUser.id, department: dept, addedById: user.id },
+    });
+    return redirect("/hod/guides?msg=assigned");
   }
 
   const pending = await prisma.facultyGuideInvitation.findFirst({
     where: { email, department: dept, status: "PENDING" },
   });
   if (pending) {
-    throw new Error("An active invitation for this email already exists");
+    return redirect("/hod/guides?msg=already_invited");
   }
 
   await prisma.facultyGuideInvitation.create({
     data: { department: dept, email, invitedByUserId: user.id },
   });
-  revalidatePath("/hod/guides");
+  redirect("/hod/guides?msg=invited");
 }
 
 export async function inviteGuide(email: string, name?: string) {
