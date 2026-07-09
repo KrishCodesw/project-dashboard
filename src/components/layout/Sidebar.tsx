@@ -160,7 +160,7 @@ export function Sidebar({ role, userName, userIsHod = false, userIsPrincipal = f
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
-          {navItems.map((item) => {
+          {!userIsPrincipal && navItems.map((item) => {
             const isActive =
               pathname === item.href ||
               (item.href !== `/${role.toLowerCase()}` &&
@@ -221,7 +221,7 @@ export function Sidebar({ role, userName, userIsHod = false, userIsPrincipal = f
             );
           })}
 
-          {role === "TEACHER" && userIsHod && (
+          {!userIsPrincipal && role === "TEACHER" && userIsHod && (
             <>
               {!sidebarCollapsed && (
                 <div className="pt-4 pb-1 px-3">

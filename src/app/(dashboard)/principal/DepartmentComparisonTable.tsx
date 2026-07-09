@@ -8,7 +8,10 @@ type DeptRow = {
   teacherCount: number;
   activeCount: number;
   completedCount: number;
+  totalTasks: number;
+  doneTasks: number;
   completionRate: number;
+  taskCompletionRate: number;
 };
 
 export function DepartmentComparisonTable({
@@ -33,7 +36,7 @@ export function DepartmentComparisonTable({
               Department Comparison
             </h2>
             <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mt-0.5">
-              Projects · Guides · Students · Completion
+              Projects · Guides · Students · Tasks · Completion
             </p>
           </div>
           <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded-sm">
@@ -49,9 +52,10 @@ export function DepartmentComparisonTable({
               <th className="text-right p-3 font-medium">Projects</th>
               <th className="text-right p-3 font-medium">Active</th>
               <th className="text-right p-3 font-medium">Guides</th>
-              <th className="text-right p-3 font-medium">Teachers</th>
               <th className="text-right p-3 font-medium">Students</th>
+              <th className="text-right p-3 font-medium">Tasks</th>
               <th className="text-right p-3 font-medium">Completion</th>
+              <th className="text-right p-3 font-medium">Task Done</th>
             </tr>
           </thead>
           <tbody>
@@ -64,19 +68,10 @@ export function DepartmentComparisonTable({
                 <td className="p-3 text-right">{row.projectCount}</td>
                 <td className="p-3 text-right">{row.activeCount}</td>
                 <td className="p-3 text-right">{row.guideCount}</td>
-                <td className="p-3 text-right">{row.teacherCount}</td>
                 <td className="p-3 text-right">{row.studentCount}</td>
-                <td className="p-3 text-right">
-                  <span
-                    className={`font-mono ${
-                      row.completionRate >= 50
-                        ? "text-emerald-600"
-                        : "text-amber-600"
-                    }`}
-                  >
-                    {row.completionRate}%
-                  </span>
-                </td>
+                <td className="p-3 text-right">{row.totalTasks}</td>
+                <td className="p-3 text-right">{row.completionRate}%</td>
+                <td className="p-3 text-right">{row.taskCompletionRate}%</td>
               </tr>
             ))}
           </tbody>
