@@ -12,9 +12,31 @@ export async function getHODDashboardData() {
   const dept = user.department;
   if (!dept) throw new Error("HOD has no department assigned");
 
-  const [projects, guideCount, activeInvitations, config] = await Promise.all([
+  // Get all guide user IDs — all project queries use this
+  const guideUsers = await prisma.departmentGuide.findMany({
+    where: { department: dept },
+    select: { userId: true },
+  });
+  const guideIds = guideUsers.map((g) => g.userId);
+  // ponytail: guideIds may be empty if no guides assigned — queries return 0, which is correct
+
+  const guideFilter = guideIds.length > 0 ? { teacherId: { in: guideIds } } : { id: "" }; // ponytail: id:"" = always empty result when no guides
+
+  const [
+    projects,
+    guideCount,
+    activeInvitations,
+    config,
+    statusCounts,
+    domainCounts,
+    guidesWithProjects,
+    totalTasks,
+    completedTasks,
+    totalReviews,
+    projectCreationDates,
+  ] = await Promise.all([
     prisma.project.findMany({
-      where: { department: dept },
+      where: { ...guideFilter },
       include: { _count: { select: { members: true, tasks: true } } },
       orderBy: { updatedAt: "desc" },
       take: 50,
@@ -24,7 +46,65 @@ export async function getHODDashboardData() {
     prisma.departmentConfiguration.findFirst({
       where: { department: dept, isActive: true },
     }),
+    prisma.project.groupBy({
+      by: ["status"],
+      where: { ...guideFilter },
+      _count: true,
+    }),
+    prisma.project.groupBy({
+      by: ["domain"],
+      where: { ...guideFilter },
+      _count: true,
+      orderBy: { _count: { domain: "desc" } },
+      take: 10,
+    }),
+    prisma.departmentGuide.findMany({
+      where: { department: dept },
+      include: {
+        user: {
+          select: {
+            name: true,
+            _count: { select: { managedProjects: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.task.count({
+      where: { project: { ...guideFilter } },
+    }),
+    prisma.task.count({
+      where: { project: { ...guideFilter }, status: "DONE" },
+    }),
+    prisma.review.count({
+      where: { project: { ...guideFilter } },
+    }),
+    // Monthly trend via Prisma — fetch dates, group in JS
+    prisma.project.findMany({
+      where: { ...guideFilter, createdAt: { gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) } },
+      select: { createdAt: true },
+    }),
   ]);
+
+  // Build monthly trend from raw dates
+  const monthMap = new Map<string, number>();
+  for (const p of projectCreationDates) {
+    const key = `${p.createdAt.getFullYear()}-${String(p.createdAt.getMonth() + 1).padStart(2, "0")}`;
+    monthMap.set(key, (monthMap.get(key) || 0) + 1);
+  }
+  const projectTrend = Array.from(monthMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, count]) => ({ month, count }));
+
+  const statusBreakdown = statusCounts.map((s) => ({ name: s.status, value: s._count }));
+  const domainBreakdown = domainCounts.filter((d) => d.domain).map((d) => ({ name: d.domain!, value: d._count }));
+  const guideLoad = guidesWithProjects.map((g) => ({
+    name: g.user.name,
+    projects: g.user._count.managedProjects,
+  }));
+
+  const projectStatusCounts: Record<string, number> = {};
+  for (const s of statusCounts) projectStatusCounts[s.status] = s._count;
 
   return {
     projects,
@@ -35,6 +115,16 @@ export async function getHODDashboardData() {
     projectGroupCount: config?.projectGroupCount ?? 0,
     divisionCount: config?.divisionCount ?? 0,
     department: dept,
+    statusBreakdown,
+    domainBreakdown,
+    guideLoad,
+    projectTrend,
+    totalProjects: projects.length,
+    totalTasks,
+    completedTasks,
+    totalReviews,
+    completedProjects: projectStatusCounts["COMPLETED"] ?? 0,
+    activeProjects: projectStatusCounts["ACTIVE"] ?? 0,
   };
 }
 
