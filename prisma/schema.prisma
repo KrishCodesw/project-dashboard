@@ -213,7 +213,6 @@ model User {
   departmentGuides      DepartmentGuide[]              @relation("DepartmentGuideMember")
   departmentGuidesAdded DepartmentGuide[]              @relation("DepartmentGuideAddedBy")
 
-  @@index([role])
   @@index([uid])
   @@index([role, uid])
   @@map("users")
