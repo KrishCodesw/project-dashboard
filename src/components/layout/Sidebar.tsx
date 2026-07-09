@@ -22,6 +22,9 @@ import {
   Upload,
   LogOut,
   Sparkles,
+  Building2,
+  FileText,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   Tooltip,
@@ -74,9 +77,10 @@ const studentNav: NavItem[] = [
 interface SidebarProps {
   role: "ADMIN" | "TEACHER" | "STUDENT";
   userName: string;
+  userIsHod?: boolean;
 }
 
-export function Sidebar({ role, userName }: SidebarProps) {
+export function Sidebar({ role, userName, userIsHod = false }: SidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar, setSidebarCollapsed } = useUIStore();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -215,6 +219,81 @@ export function Sidebar({ role, userName }: SidebarProps) {
               </div>
             );
           })}
+
+          {role === "TEACHER" && userIsHod && (
+            <>
+              {!sidebarCollapsed && (
+                <div className="pt-4 pb-1 px-3">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+                    HOD
+                  </p>
+                </div>
+              )}
+              {[
+                { title: "HOD Dashboard", href: "/hod", icon: Building2 },
+                { title: "Faculty Guides", href: "/hod/guides", icon: FileText },
+                { title: "Department Config", href: "/hod/configuration", icon: SlidersHorizontal },
+              ].map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/hod" && pathname.startsWith(item.href));
+
+                const linkContent = (
+                  <Link
+                    href={item.href}
+                    onClick={() => isMobile && toggleSidebar()}
+                    className={cn(
+                      "flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm font-sans font-medium transition-all duration-200 ease-[0.23,1,0.32,1] border border-transparent hover:scale-[0.98] active:scale-95",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      sidebarCollapsed && "justify-center px-2",
+                    )}
+                  >
+                    <item.icon
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-colors duration-200",
+                        isActive
+                          ? "text-primary-foreground"
+                          : "text-muted-foreground",
+                      )}
+                    />
+                    <AnimatePresence mode="wait">
+                      {!sidebarCollapsed && (
+                        <motion.span
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: "auto" }}
+                          exit={{ opacity: 0, width: 0 }}
+                          className="overflow-hidden whitespace-nowrap"
+                        >
+                          {item.title}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </Link>
+                );
+
+                return (
+                  <div key={item.href} className="relative">
+                    {sidebarCollapsed ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+                        <TooltipContent
+                          side="right"
+                          sideOffset={10}
+                          className="font-mono text-[10px] uppercase tracking-wider rounded-[2px] bg-foreground text-background"
+                        >
+                          {item.title}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      linkContent
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         {/* Footer */}

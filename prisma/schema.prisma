@@ -188,6 +188,7 @@ model User {
   department   String?
   rollNumber   String?
   uid          String?
+  isHod        Boolean  @default(false)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -206,6 +207,8 @@ model User {
   pendingProjectInvites PendingProjectAssignment[] @relation("PendingAssignmentInviter")
   publicationsEntered   Publication[]              @relation("PublicationEnteredBy")
   publicationsApproved  Publication[]              @relation("PublicationApprovedBy")
+  departmentConfigs     DepartmentConfiguration[]
+  guideInvitationsSent  FacultyGuideInvitation[]
 
   @@map("users")
   @@index([role, isActive])
@@ -618,4 +621,46 @@ model PublicationScoreConfig {
 
   @@unique([publicationType, subType])
   @@map("publication_score_configs")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+model DepartmentConfiguration {
+  id                String   @id @default(cuid())
+  academicYear      String
+  department        String
+  divisionCount     Int      @default(0)
+  studentCount      Int      @default(0)
+  projectGroupCount Int      @default(0)
+  isActive          Boolean  @default(true)
+  configuredByUserId String?
+  configuredBy      User?    @relation(fields: [configuredByUserId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([academicYear, department])
+  @@index([department, academicYear])
+  @@map("department_configurations")
+}
+
+model FacultyGuideInvitation {
+  id              String           @id @default(cuid())
+  department      String
+  email           String
+  name            String?
+  status          InvitationStatus @default(PENDING)
+  invitedByUserId String?
+  invitedBy       User?            @relation(fields: [invitedByUserId], references: [id], onDelete: SetNull)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([email])
+  @@index([department, status])
+  @@index([status])
+  @@map("faculty_guide_invitations")
 }

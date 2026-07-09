@@ -1,5 +1,7 @@
 import { headers } from "next/headers";
-import { resolveUserFromHeaders } from "@/lib/resolve-user";
+import { resolveUserFromHeaders, getCoeAuthFromHeaders } from "@/lib/resolve-user";
+import { mapCoERoleToDashboard } from "@/lib/coe-auth";
+import { prisma } from "@/lib/prisma";
 
 export type DashboardRole = "ADMIN" | "TEACHER" | "STUDENT";
 
@@ -22,5 +24,29 @@ export async function requireRole(role: DashboardRole | DashboardRole[]) {
   if (!roles.includes(user.role)) {
     throw new Error("Unauthorized");
   }
+  return user;
+}
+
+export async function requireHOD() {
+  const requestHeaders = await headers();
+  const authUser = getCoeAuthFromHeaders(requestHeaders);
+  if (!authUser) throw new Error("Unauthorized");
+
+  const mapped = mapCoERoleToDashboard(authUser.role);
+  if (mapped !== "TEACHER") throw new Error("Unauthorized");
+
+  const user = await prisma.user.findUnique({
+    where: { email: authUser.email.toLowerCase().trim() },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      department: true,
+      isHod: true,
+    },
+  });
+  if (!user || !user.isHod) throw new Error("Unauthorized");
+
   return user;
 }

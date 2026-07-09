@@ -75,6 +75,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const isHod = typeof body.isHod === "boolean" ? body.isHod : undefined;
+
   try {
     const result = await upsertDashboardUser({
       email,
@@ -84,6 +86,7 @@ export async function POST(req: NextRequest) {
       uid: (body.uid as string) || null,
       status,
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : undefined,
+      isHod,
     });
 
     if (!result) {
