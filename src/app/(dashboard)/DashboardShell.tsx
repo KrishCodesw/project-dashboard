@@ -15,6 +15,7 @@ interface DashboardShellProps {
   userRole: "ADMIN" | "TEACHER" | "STUDENT";
   userImage?: string | null;
   userIsHod?: boolean;
+  userIsPrincipal?: boolean;
   children: React.ReactNode;
 }
 
@@ -24,6 +25,7 @@ export function DashboardShell({
   userRole,
   userImage,
   userIsHod = false,
+  userIsPrincipal = false,
   children,
 }: DashboardShellProps) {
   const pathname = usePathname();
@@ -36,7 +38,7 @@ export function DashboardShell({
 
   return (
     <div className="dashboard-surface min-h-screen bg-background">
-      <Sidebar role={userRole} userName={userName} userIsHod={userIsHod} />
+      <Sidebar role={userRole} userName={userName} userIsHod={userIsHod} userIsPrincipal={userIsPrincipal} />
       <Topbar userId={userId} userName={userName} userRole={userRole} userImage={userImage} />
       <NotificationPanel userId={userId} />
 

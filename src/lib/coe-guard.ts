@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { resolveUserFromHeaders, getCoeAuthFromHeaders } from "@/lib/resolve-user";
 import { mapCoERoleToDashboard } from "@/lib/coe-auth";
 import { prisma } from "@/lib/prisma";
+import { isPrincipal } from "@/lib/principal";
 
 export type DashboardRole = "ADMIN" | "TEACHER" | "STUDENT";
 
@@ -48,5 +49,19 @@ export async function requireHOD() {
   });
   if (!user || !user.isHod) throw new Error("Unauthorized");
 
+  return user;
+}
+
+export async function requirePrincipal() {
+  const requestHeaders = await headers();
+  const authUser = getCoeAuthFromHeaders(requestHeaders);
+  if (!authUser) throw new Error("Unauthorized");
+
+  if (authUser.status !== "ACTIVE") throw new Error("Unauthorized");
+
+  if (!isPrincipal(authUser.email)) throw new Error("Unauthorized");
+
+  const user = await resolveUserFromHeaders(requestHeaders);
+  if (!user) throw new Error("Unauthorized");
   return user;
 }

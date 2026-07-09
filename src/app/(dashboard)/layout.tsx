@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { resolveUserFromHeaders } from "@/lib/resolve-user";
 import { prisma } from "@/lib/prisma";
+import { isPrincipal } from "@/lib/principal";
 import { DashboardShell } from "./DashboardShell";
 
 export default async function DashboardLayout({
@@ -25,6 +26,8 @@ export default async function DashboardLayout({
     isHod = dbUser?.isHod ?? false;
   }
 
+  const isUserPrincipal = isPrincipal(user.email);
+
   return (
     <DashboardShell
       userId={user.id}
@@ -32,6 +35,7 @@ export default async function DashboardLayout({
       userRole={user.role}
       userImage={user.avatarUrl}
       userIsHod={isHod}
+      userIsPrincipal={isUserPrincipal}
     >
       {children}
     </DashboardShell>
