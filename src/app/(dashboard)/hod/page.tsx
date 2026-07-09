@@ -1,11 +1,20 @@
 import { requireHOD } from "@/lib/coe-guard";
 import { getHODDashboardData } from "@/server/actions/hod-dashboard";
 import { getCurrentAcademicYear } from "@/lib/academic-year";
+import { Users, BookOpen, GraduationCap, Mail, Layers } from "lucide-react";
 
 export default async function HODDashboardPage() {
   const user = await requireHOD();
   const data = await getHODDashboardData();
   const academicYear = getCurrentAcademicYear();
+
+  const stats = [
+    { label: "Projects", value: data.projects.length, icon: BookOpen },
+    { label: "Faculty Guides", value: data.guideCount, icon: Users },
+    { label: "Students", value: data.studentCount, icon: GraduationCap },
+    { label: "Divisions", value: data.divisionCount, icon: Layers },
+    { label: "Pending Invitations", value: data.activeInvitations, icon: Mail },
+  ];
 
   return (
     <div className="space-y-6">
@@ -16,23 +25,16 @@ export default async function HODDashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-[2px] border border-border bg-card p-6 shadow-none">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Projects</p>
-          <p className="text-3xl font-bold mt-1">{data.projects.length}</p>
-        </div>
-        <div className="rounded-[2px] border border-border bg-card p-6 shadow-none">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Faculty Guides</p>
-          <p className="text-3xl font-bold mt-1">{data.totalTeachers}</p>
-        </div>
-        <div className="rounded-[2px] border border-border bg-card p-6 shadow-none">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Students</p>
-          <p className="text-3xl font-bold mt-1">{data.totalStudents}</p>
-        </div>
-        <div className="rounded-[2px] border border-border bg-card p-6 shadow-none">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Pending Invitations</p>
-          <p className="text-3xl font-bold mt-1">{data.activeInvitations}</p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {stats.map((stat) => (
+          <div key={stat.label} className="rounded-[2px] border border-border bg-card p-6 shadow-none">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{stat.label}</p>
+              <stat.icon className="h-4 w-4 text-muted-foreground/60" />
+            </div>
+            <p className="text-3xl font-bold">{stat.value}</p>
+          </div>
+        ))}
       </div>
 
       <div>

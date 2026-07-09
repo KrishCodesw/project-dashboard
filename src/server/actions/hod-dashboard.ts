@@ -12,15 +12,14 @@ export async function getHODDashboardData() {
   const dept = user.department;
   if (!dept) throw new Error("HOD has no department assigned");
 
-  const [projects, totalTeachers, totalStudents, activeInvitations, config] = await Promise.all([
+  const [projects, guideCount, activeInvitations, config] = await Promise.all([
     prisma.project.findMany({
       where: { department: dept },
       include: { _count: { select: { members: true, tasks: true } } },
       orderBy: { updatedAt: "desc" },
       take: 50,
     }),
-    prisma.user.count({ where: { department: dept, role: "TEACHER", isActive: true } }),
-    prisma.user.count({ where: { department: dept, role: "STUDENT", isActive: true } }),
+    prisma.departmentGuide.count({ where: { department: dept } }),
     prisma.facultyGuideInvitation.count({ where: { department: dept, status: "PENDING" } }),
     prisma.departmentConfiguration.findFirst({
       where: { department: dept, isActive: true },
@@ -29,10 +28,12 @@ export async function getHODDashboardData() {
 
   return {
     projects,
-    totalTeachers,
-    totalStudents,
-    activeInvitations,
+    guideCount,
     config,
+    activeInvitations,
+    studentCount: config?.studentCount ?? 0,
+    projectGroupCount: config?.projectGroupCount ?? 0,
+    divisionCount: config?.divisionCount ?? 0,
     department: dept,
   };
 }
