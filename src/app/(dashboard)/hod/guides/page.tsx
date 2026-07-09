@@ -1,7 +1,6 @@
 import { requireHOD } from "@/lib/coe-guard";
 import { getDepartmentGuides, removeGuide } from "@/server/actions/hod-dashboard";
 import { AddGuideForm } from "./AddGuideForm";
-import { InviteFacultyForm } from "./InviteFacultyForm";
 import { PendingInvitations } from "./PendingInvitations";
 
 const MSG_MAP: Record<string, { text: string; type: "success" | "error" }> = {
@@ -89,11 +88,6 @@ export default async function FacultyGuidesPage({
       <div className="rounded-[2px] border border-border bg-card p-5">
         <h2 className="text-sm font-semibold mb-4">Pending Invitations</h2>
         <PendingInvitations invitations={data.pendingInvitations} />
-      </div>
-
-      <div className="rounded-[2px] border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold mb-4">Invite New Faculty</h2>
-        <InviteFacultyForm />
       </div>
     </div>
   );
