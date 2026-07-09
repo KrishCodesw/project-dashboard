@@ -2,9 +2,10 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { useStudentProjects } from "@/hooks/useProjects";
+import { useStudentProjectsPaginated } from "@/hooks/useProjects";
 import { ProjectCard } from "@/components/dashboard/ProjectCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 type StudentProjectsClientProps = {
   userId: string;
@@ -20,7 +21,17 @@ const item = {
 };
 
 export default function StudentProjectsClient({ userId }: StudentProjectsClientProps) {
-  const { data: projects, isLoading } = useStudentProjects(userId);
+  const [page, setPage] = React.useState(1);
+
+  const { data, isLoading } = useStudentProjectsPaginated(userId, {
+    page,
+    pageSize: 20,
+  });
+
+  const projects = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 0;
+  const pageSize = data?.pageSize ?? 20;
 
   return (
     <div className="space-y-6">
@@ -37,7 +48,7 @@ export default function StudentProjectsClient({ userId }: StudentProjectsClientP
             <Skeleton key={i} className="h-64 rounded-xl" />
           ))}
         </div>
-      ) : (projects ?? []).length === 0 ? (
+      ) : projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-muted-foreground">No projects assigned yet</p>
         </div>
@@ -48,7 +59,7 @@ export default function StudentProjectsClient({ userId }: StudentProjectsClientP
           animate="show"
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
-          {(projects ?? []).map((project: any) => (
+          {projects.map((project: any) => (
             <motion.div key={project.id} variants={item}>
               <ProjectCard
                 project={project}
@@ -58,6 +69,14 @@ export default function StudentProjectsClient({ userId }: StudentProjectsClientP
           ))}
         </motion.div>
       )}
+
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

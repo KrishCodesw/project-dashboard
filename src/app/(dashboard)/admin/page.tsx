@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { getUsers } from "@/server/actions/users";
+import { getUsers, getUserCounts } from "@/server/actions/users";
 import {
   Users,
   GraduationCap,
@@ -28,20 +28,17 @@ const item = {
 };
 
 export default function AdminOverviewPage() {
-  const { data: users, isLoading } = useQuery({
-    queryKey: ["admin", "users"],
-    queryFn: () => getUsers(),
+  const { data: counts, isLoading: countsLoading } = useQuery({
+    queryKey: ["admin", "user-counts"],
+    queryFn: () => getUserCounts(),
   });
 
-  const stats = React.useMemo(() => {
-    if (!users) return { total: 0, students: 0, teachers: 0, admins: 0 };
-    return {
-      total: users.length,
-      students: users.filter((u: any) => u.role === "STUDENT").length,
-      teachers: users.filter((u: any) => u.role === "TEACHER").length,
-      admins: users.filter((u: any) => u.role === "ADMIN").length,
-    };
-  }, [users]);
+  const { data: recentUsersResult, isLoading: recentLoading } = useQuery({
+    queryKey: ["admin", "recent-users"],
+    queryFn: () => getUsers(undefined, { page: 1, pageSize: 10 }),
+  });
+  const recentUsers = recentUsersResult?.data ?? [];
+  const stats = counts ?? { total: 0, students: 0, teachers: 0, admins: 0 };
 
   return (
     <div className="space-y-8">
@@ -163,7 +160,7 @@ export default function AdminOverviewPage() {
         animate="show"
         className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
-        {isLoading ? (
+        {countsLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-32 rounded-xl" />
           ))
@@ -216,13 +213,13 @@ export default function AdminOverviewPage() {
           <h3 className="font-semibold">Recent Users</h3>
         </div>
         <div className="divide-y">
-          {isLoading
+          {recentLoading
             ? Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="p-4">
                   <Skeleton className="h-6 w-48" />
                 </div>
               ))
-            : (users ?? []).slice(0, 10).map((user: any) => (
+            : recentUsers.map((user: any) => (
                 <div
                   key={user.id}
                   className="flex items-center justify-between p-4 text-sm"

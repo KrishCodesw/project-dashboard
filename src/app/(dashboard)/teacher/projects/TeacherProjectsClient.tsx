@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Plus, Search, Filter, BookOpen } from "lucide-react";
-import { useTeacherProjects } from "@/hooks/useProjects";
+import { useTeacherProjectsPaginated } from "@/hooks/useProjects";
 import { ProjectCard } from "@/components/dashboard/ProjectCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 type TeacherProjectsClientProps = {
   userId: string;
@@ -31,40 +32,28 @@ const item = {
 };
 
 export default function TeacherProjectsClient({ userId }: TeacherProjectsClientProps) {
-  const { data: projects, isLoading } = useTeacherProjects(userId);
-
+  const [page, setPage] = React.useState(1);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("ALL");
   const [rblFilter, setRblFilter] = React.useState("ALL");
 
-  const filtered = React.useMemo(() => {
-    let list = projects ?? [];
+  const { data, isLoading } = useTeacherProjectsPaginated(userId, {
+    page,
+    pageSize: 20,
+    search: search || undefined,
+    status: statusFilter,
+    rblFilter,
+  });
 
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (p: any) =>
-          p.title.toLowerCase().includes(q) ||
-          p.domain.toLowerCase().includes(q) ||
-          (p.department && p.department.toLowerCase().includes(q)) ||
-          (p.groupNo && p.groupNo.toLowerCase().includes(q)),
-      );
-    }
+  const projects = data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = data?.totalPages ?? 0;
+  const pageSize = data?.pageSize ?? 20;
 
-    if (statusFilter !== "ALL") {
-      list = list.filter((p: any) => p.status === statusFilter);
-    }
-
-    if (rblFilter === "RBL") {
-      list = list.filter((p: any) => p.isRblProject === true);
-    } else if (rblFilter === "STANDARD") {
-      list = list.filter(
-        (p: any) => p.isRblProject === false || p.isRblProject === null,
-      );
-    }
-
-    return list;
-  }, [projects, search, statusFilter, rblFilter]);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    setPage(1);
+  };
 
   return (
     <div className="space-y-6">
@@ -90,13 +79,16 @@ export default function TeacherProjectsClient({ userId }: TeacherProjectsClientP
           <Input
             placeholder="Search title, domain, dept, or group no..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={handleSearchChange}
             className="pl-9"
           />
         </div>
 
         <div className="flex w-full sm:w-auto gap-3">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => { setStatusFilter(v); setPage(1); }}
+          >
             <SelectTrigger className="w-full sm:w-40">
               <Filter className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Status" />
@@ -111,7 +103,10 @@ export default function TeacherProjectsClient({ userId }: TeacherProjectsClientP
             </SelectContent>
           </Select>
 
-          <Select value={rblFilter} onValueChange={setRblFilter}>
+          <Select
+            value={rblFilter}
+            onValueChange={(v) => { setRblFilter(v); setPage(1); }}
+          >
             <SelectTrigger className="w-full sm:w-40">
               <BookOpen className="mr-2 h-4 w-4 text-muted-foreground" />
               <SelectValue placeholder="Type" />
@@ -132,7 +127,7 @@ export default function TeacherProjectsClient({ userId }: TeacherProjectsClientP
             <Skeleton key={i} className="h-64 rounded-xl" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-muted-foreground">No projects found</p>
           <Link href="/teacher/projects/new" className="mt-4">
@@ -146,7 +141,7 @@ export default function TeacherProjectsClient({ userId }: TeacherProjectsClientP
           animate="show"
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
-          {filtered.map((project: any) => (
+          {projects.map((project: any) => (
             <motion.div key={project.id} variants={item}>
               <ProjectCard
                 project={project}
@@ -156,6 +151,14 @@ export default function TeacherProjectsClient({ userId }: TeacherProjectsClientP
           ))}
         </motion.div>
       )}
+
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

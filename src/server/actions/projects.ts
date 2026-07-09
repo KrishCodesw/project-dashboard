@@ -9,6 +9,8 @@ import { revalidatePath } from "next/cache";
 import { isInstitutionalEmail, getInstitutionalDomain } from "@/lib/validation";
 import { createBulkNotifications } from "@/lib/notifications";
 import { updateProjectCompletion } from "@/lib/completion";
+import { buildPagination } from "@/lib/pagination";
+import type { PaginatedResult } from "@/lib/pagination";
 
 const createProjectSchema = z.object({
   title: z.string().min(3),
@@ -246,13 +248,23 @@ function parseAssignmentCsv(csvContent: string): CsvAssignmentRow[] {
   return Array.from(deduped.values());
 }
 
-function buildAssignmentEmailBody(projectTitle: string, loginOrRegisterUrl: string): string {
+function buildCoeLoginUrl(): string {
+  const baseUrl = (process.env.COE_MAIN_URL || "https://tcetcercd.in").replace(/\/+$/, "");
+  const dashboardUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  return `${baseUrl}/login?callbackUrl=${encodeURIComponent(`${dashboardUrl}/student/projects`)}`;
+}
+
+function buildAssignmentEmailBody(projectTitle: string, loginOrRegisterUrl: string, invitedByName?: string): string {
+  const invitedByLine = invitedByName
+    ? `<p style="margin: 0 0 12px;">Invited by <strong>${invitedByName}</strong>.</p>`
+    : "";
   return `
     <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #111827;">
       <h2 style="color: #2563eb; margin-bottom: 12px;">Project Assignment Notification</h2>
       <p style="margin: 0 0 12px;">You have been assigned to <strong>${projectTitle}</strong>.</p>
-      <p style="margin: 0 0 12px;">Please continue using the link below:</p>
-      <p style="margin: 0 0 12px;"><a href="${loginOrRegisterUrl}" style="color: #2563eb;">${loginOrRegisterUrl}</a></p>
+      ${invitedByLine}
+      <p style="margin: 0 0 12px;">Please log in to <strong>tcetcercd.in</strong> to join your project and get started.</p>
+      <p style="margin: 0 0 12px;"><a href="${loginOrRegisterUrl}" style="color: #2563eb;">Log in to accept assignment</a></p>
       <p style="margin: 0; color: #6b7280; font-size: 13px;">If this assignment is unexpected, contact your administrator.</p>
     </div>
   `;
@@ -260,6 +272,8 @@ function buildAssignmentEmailBody(projectTitle: string, loginOrRegisterUrl: stri
 
 export async function adminUploadProjectAssignments(data: z.infer<typeof adminUploadAssignmentsSchema>) {
   const adminId = await requireAdminSession();
+  const admin = await prisma.user.findUnique({ where: { id: adminId }, select: { name: true } });
+  const invitedByName = admin?.name || "Administrator";
 
   const validated = adminUploadAssignmentsSchema.parse(data);
   const rows = parseAssignmentCsv(validated.csvContent);
@@ -360,18 +374,14 @@ export async function adminUploadProjectAssignments(data: z.infer<typeof adminUp
     });
   }
 
-  const appUrl = process.env.NEXTAUTH_URL;
+  const actionUrl = buildCoeLoginUrl();
   const emailJobs = resolvedRows.map((row) => {
     const project = projectsByLowerTitle.get(row.projectName.toLowerCase().trim())!;
-    const existingUser = existingByEmail.has(row.email);
-    const actionUrl = existingUser
-      ? `${appUrl}/login`
-      : `${appUrl}/register?email=${encodeURIComponent(row.email)}`;
 
     return {
       to: row.email,
       subject: `Project Assignment: ${project.title}`,
-      body: buildAssignmentEmailBody(project.title, actionUrl),
+      body: buildAssignmentEmailBody(project.title, actionUrl, invitedByName),
       status: "PENDING" as const,
     };
   });
@@ -414,11 +424,38 @@ export async function getAdminAssignableProjects() {
   });
 }
 
-export async function getAdminProjectsManagementData() {
+export async function getAdminProjectsManagementData(params?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+}) {
   await requireAdminSession();
 
-  const [projects, teachers, students] = await Promise.all([
+  const { page, pageSize, skip, take } = buildPagination({
+    page: params?.page ?? 1,
+    pageSize: params?.pageSize ?? 20,
+  });
+
+  const where: any = {};
+  if (params?.search) {
+    const q = params.search;
+    where.OR = [
+      { title: { contains: q } },
+      { domain: { contains: q } },
+      { department: { contains: q } },
+      { teacher: { name: { contains: q } } },
+    ];
+  }
+  if (params?.status) {
+    where.status = params.status;
+  }
+
+  const [projects, total, teachers, students] = await Promise.all([
     prisma.project.findMany({
+      where,
+      skip,
+      take,
       select: {
         id: true,
         title: true,
@@ -432,7 +469,6 @@ export async function getAdminProjectsManagementData() {
         startDate: true,
         endDate: true,
         updatedAt: true,
-        // MUST ADD THESE TWO LINES:
         hasPendingEdit: true,
         pendingEditData: true,
         teacher: {
@@ -458,8 +494,8 @@ export async function getAdminProjectsManagementData() {
         },
       },
       orderBy: { updatedAt: "desc" },
-      take: 500,
     }),
+    prisma.project.count({ where }),
     prisma.user.findMany({
       where: { role: "TEACHER", isActive: true },
       select: { id: true, name: true, email: true },
@@ -477,6 +513,10 @@ export async function getAdminProjectsManagementData() {
     projects,
     teachers,
     students,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
   };
 }
 
@@ -547,6 +587,8 @@ export async function adminUpdateProjectMentor(data: z.infer<typeof adminUpdateM
 export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemberSchema>) {
   try {
     const adminId = await requireAdminSession();
+    const admin = await prisma.user.findUnique({ where: { id: adminId }, select: { name: true } });
+    const invitedByName = admin?.name || "Administrator";
     const validated = adminUpsertMemberSchema.parse(data);
 
     const project = await prisma.project.findUnique({
@@ -632,14 +674,14 @@ export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemb
       });
 
       // Queue email outside transaction
-      const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
       await prisma.emailQueue.create({
         data: {
           to: normalizedEmail,
           subject: `Project Assignment: ${project.title}`,
           body: buildAssignmentEmailBody(
             project.title,
-            `${appUrl}/register?email=${encodeURIComponent(normalizedEmail)}`
+            buildCoeLoginUrl(),
+            invitedByName
           ),
           status: "PENDING",
         },
@@ -918,14 +960,14 @@ export async function addProjectMember(
       });
 
       // Queue email outside transaction
-      const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
       await prisma.emailQueue.create({
         data: {
           to: normalizedEmail,
           subject: `Project Assignment: ${project.title}`,
           body: buildAssignmentEmailBody(
             project.title,
-            `${appUrl}/register?email=${encodeURIComponent(normalizedEmail)}`
+            buildCoeLoginUrl(),
+            user.name
           ),
           status: "PENDING",
         },
@@ -1095,14 +1137,14 @@ export async function editPendingAssignment(projectId: string, assignmentId: str
         where: { id: assignmentId },
       });
 
-      const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
       await tx.emailQueue.create({
         data: {
           to: normalizedEmail,
           subject: `Project Assignment: ${assignment.project.title}`,
           body: buildAssignmentEmailBody(
             assignment.project.title,
-            `${appUrl}/register?email=${encodeURIComponent(normalizedEmail)}`
+            buildCoeLoginUrl(),
+            user.name
           ),
           status: "PENDING",
         },
@@ -1142,7 +1184,6 @@ export async function resendPendingInvitation(projectId: string, assignmentId: s
     };
   }
 
-  const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
   await prisma.$transaction([
     prisma.emailQueue.create({
       data: {
@@ -1150,7 +1191,8 @@ export async function resendPendingInvitation(projectId: string, assignmentId: s
         subject: `Project Assignment: ${assignment.project.title}`,
         body: buildAssignmentEmailBody(
           assignment.project.title,
-          `${appUrl}/register?email=${encodeURIComponent(assignment.email)}`
+          buildCoeLoginUrl(),
+          user.name
         ),
         status: "PENDING",
       },
@@ -1227,24 +1269,53 @@ export async function setProjectLead(projectId: string, studentId: string) {
   revalidatePath(`/teacher/projects/${projectId}/members`);
 }
 
-export async function getTeacherProjects(teacherId: string) {
-  return prisma.project.findMany({
-    where: { teacherId },
-    include: {
-      members: {
-        include: {
-          student: {
-            select: { id: true, name: true, avatarUrl: true },
+export async function getTeacherProjects(
+  teacherId: string,
+  params?: { page?: number; pageSize?: number; search?: string; status?: string; rblFilter?: string },
+): Promise<PaginatedResult<any>> {
+  const { page, pageSize, skip, take } = buildPagination({
+    page: params?.page ?? 1,
+    pageSize: params?.pageSize ?? 20,
+  });
+
+  const where: any = { teacherId };
+  if (params?.status && params.status !== "ALL") where.status = params.status;
+  if (params?.rblFilter === "RBL") where.isRblProject = true;
+  else if (params?.rblFilter === "STANDARD") where.isRblProject = false;
+  if (params?.search) {
+    const q = params.search.toLowerCase();
+    where.OR = [
+      { title: { contains: q } },
+      { domain: { contains: q } },
+      { department: { contains: q } },
+      { groupNo: { contains: q } },
+    ];
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.project.findMany({
+      where,
+      skip,
+      take,
+      include: {
+        members: {
+          include: {
+            student: {
+              select: { id: true, name: true, avatarUrl: true },
+            },
           },
         },
+        tags: { include: { tag: true } },
+        _count: {
+          select: { tasks: true, milestones: true, reviews: true, files: true },
+        },
       },
-      tags: { include: { tag: true } },
-      _count: {
-        select: { tasks: true, milestones: true, reviews: true, files: true },
-      },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.project.count({ where }),
+  ]);
+
+  return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
 export async function getProjectById(projectId: string) {
@@ -1269,29 +1340,44 @@ export async function getProjectById(projectId: string) {
   });
 }
 
-export async function getStudentProjects(studentId: string) {
-  return prisma.project.findMany({
-    where: {
-      members: { some: { studentId } },
-    },
-    include: {
-      teacher: {
-        select: { id: true, name: true, department: true },
-      },
-      members: {
-        include: {
-          student: {
-            select: { id: true, name: true, avatarUrl: true },
+export async function getStudentProjects(
+  studentId: string,
+  params?: { page?: number; pageSize?: number },
+): Promise<PaginatedResult<any>> {
+  const { page, pageSize, skip, take } = buildPagination({
+    page: params?.page ?? 1,
+    pageSize: params?.pageSize ?? 20,
+  });
+
+  const where = { members: { some: { studentId } } };
+
+  const [data, total] = await Promise.all([
+    prisma.project.findMany({
+      where,
+      skip,
+      take,
+      include: {
+        teacher: {
+          select: { id: true, name: true, department: true },
+        },
+        members: {
+          include: {
+            student: {
+              select: { id: true, name: true, avatarUrl: true },
+            },
           },
         },
+        tags: { include: { tag: true } },
+        _count: {
+          select: { tasks: true, milestones: true, reviews: true, files: true },
+        },
       },
-      tags: { include: { tag: true } },
-      _count: {
-        select: { tasks: true, milestones: true, reviews: true, files: true },
-      },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.project.count({ where }),
+  ]);
+
+  return { data, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
 export async function getTeacherDashboardStats(teacherId: string) {

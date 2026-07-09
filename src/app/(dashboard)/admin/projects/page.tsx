@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -51,6 +51,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { toast } from "sonner";
 import {
   useAllPublications,
@@ -63,8 +64,8 @@ const DEPARTMENTS = [
   "B.E. Computer Engineering",
   "B.E. Information Technology",
   "B.E. Electronics & Tele-Communication",
-  "B.E - Electronics and Computer Science",
-  "B.E - Mechanical Engineering",
+  "B.E. Electronics and Computer Science",
+  "B.E. Mechanical Engineering",
   "B.E. Civil Engineering",
   "B.E. Computer Science and Engineering (Cyber Security)",
   "B.E. Mechanical and Mechatronics Engineering (Additive Manufacturing)",
@@ -86,7 +87,7 @@ const DEPARTMENT_DOMAINS: Record<string, string[]> = {
   "B.E. Computer Engineering": CE_DOMAINS,
   "B.E. Computer Science and Engineering (Cyber Security)": CE_DOMAINS,
   "B.Tech – Computer Science & Engineering (CSE-IOT)": CE_DOMAINS,
-  "B.E - Mechanical Engineering": [
+  "B.E. Mechanical Engineering": [
     "Manufacturing",
     "Thermal Design",
     "Automation",
@@ -133,7 +134,7 @@ const DEPARTMENT_DOMAINS: Record<string, string[]> = {
     "Electro Mechanical",
     "Mechanical Design",
   ],
-  "B.E - Electronics and Computer Science": [
+  "B.E. Electronics and Computer Science": [
     "Digital Systems and Communication",
     "Embedded Systems and IoT",
     "Software Engineering and Systems",
@@ -308,10 +309,18 @@ export default function AdminProjectsPage() {
   const [editDomain, setEditDomain] = useState<string>("");
 
   const searchParams = useSearchParams();
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<string>("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "projects", "manage"],
-    queryFn: () => getAdminProjectsManagementData(),
+    queryKey: ["admin", "projects", "manage", page, search, statusFilter],
+    queryFn: () =>
+      getAdminProjectsManagementData({
+        page,
+        pageSize: 20,
+        search: search || undefined,
+        status: statusFilter || undefined,
+      }),
   });
 
   const { data: allPublications = [], isLoading: isPublicationsLoading } =
@@ -325,18 +334,6 @@ export default function AdminProjectsPage() {
   const teachers = data?.teachers ?? [];
   const students = data?.students ?? [];
   const pendingLabel = pendingCount > 99 ? "99+" : String(pendingCount);
-
-  const filteredProjects = useMemo(() => {
-    if (!search.trim()) return projects;
-    const q = search.toLowerCase();
-    return projects.filter(
-      (project: any) =>
-        (project.title || "").toLowerCase().includes(q) ||
-        (project.domain || "").toLowerCase().includes(q) ||
-        (project.department || "").toLowerCase().includes(q) ||
-        (project.teacher?.name || "").toLowerCase().includes(q),
-    );
-  }, [projects, search]);
 
   const availableEditDomains = editDept
     ? DEPARTMENT_DOMAINS[editDept] || CE_DOMAINS
@@ -523,7 +520,7 @@ export default function AdminProjectsPage() {
         <div className="flex w-full max-w-xl flex-wrap items-center gap-2">
           <Input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
             placeholder="Search by title, domain, dept..."
             className="flex-1 min-w-[220px]"
           />
@@ -557,7 +554,7 @@ export default function AdminProjectsPage() {
             <Skeleton key={index} className="h-56 rounded-xl" />
           ))}
         </div>
-      ) : filteredProjects.length === 0 ? (
+      ) : projects.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             No projects found
@@ -565,7 +562,7 @@ export default function AdminProjectsPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {filteredProjects.map((project: any) => {
+          {projects.map((project: any) => {
             const selectedMentor =
               mentorDraft[project.id] ?? project.teacher?.id ?? "";
             const selectedMember = memberDraft[project.id] ?? "";
@@ -1011,6 +1008,15 @@ export default function AdminProjectsPage() {
             );
           })}
         </div>
+      )}
+      {data && (
+        <PaginationBar
+          page={data.page}
+          totalPages={data.totalPages}
+          total={data.total}
+          pageSize={data.pageSize}
+          onPageChange={setPage}
+        />
       )}
     </div>
   );

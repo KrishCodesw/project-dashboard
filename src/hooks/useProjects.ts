@@ -17,7 +17,10 @@ import {
 export function useTeacherProjects(teacherId: string) {
   return useQuery({
     queryKey: ["projects", "teacher", teacherId],
-    queryFn: () => getTeacherProjects(teacherId),
+    queryFn: async () => {
+      const result = await getTeacherProjects(teacherId, { pageSize: 1000 });
+      return result.data;
+    },
     enabled: !!teacherId,
   });
 }
@@ -25,7 +28,32 @@ export function useTeacherProjects(teacherId: string) {
 export function useStudentProjects(studentId: string) {
   return useQuery({
     queryKey: ["projects", "student", studentId],
-    queryFn: () => getStudentProjects(studentId),
+    queryFn: async () => {
+      const result = await getStudentProjects(studentId, { pageSize: 1000 });
+      return result.data;
+    },
+    enabled: !!studentId,
+  });
+}
+
+export function useTeacherProjectsPaginated(
+  teacherId: string,
+  params: { page?: number; pageSize?: number; search?: string; status?: string; rblFilter?: string },
+) {
+  return useQuery({
+    queryKey: ["teacher-projects", teacherId, params],
+    queryFn: () => getTeacherProjects(teacherId, params),
+    enabled: !!teacherId,
+  });
+}
+
+export function useStudentProjectsPaginated(
+  studentId: string,
+  params: { page?: number; pageSize?: number },
+) {
+  return useQuery({
+    queryKey: ["student-projects", studentId, params],
+    queryFn: () => getStudentProjects(studentId, params),
     enabled: !!studentId,
   });
 }

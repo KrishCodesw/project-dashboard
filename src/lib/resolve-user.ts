@@ -18,6 +18,7 @@ export type SyncUserInput = {
   uid?: string | null;
   status: string;
   isActive?: boolean;
+  isHod?: boolean;
 };
 
 type ResolvedUser = {
@@ -78,6 +79,11 @@ export async function upsertDashboardUser(input: SyncUserInput): Promise<Resolve
       // (prevents erasing existing data with empty sync payloads)
       if (input.uid !== undefined && input.uid !== null) {
         updateData.uid = input.uid;
+      }
+
+      // Handle isHod from sync payload
+      if (input.isHod !== undefined) {
+        updateData.isHod = input.isHod;
       }
 
       // Derive isActive from COE status: ACTIVE → true, anything else → false

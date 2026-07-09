@@ -1,8 +1,5 @@
-import { requireRole } from "@/lib/coe-guard";
-import TeacherDashboardClient from "./TeacherDashboardClient";
+import TeacherDashboardClient from "@/components/teacher/workspace/TeacherDashboardClient";
 
 export default async function TeacherDashboardPage() {
-  const user = await requireRole("TEACHER");
-
-  return <TeacherDashboardClient userId={user.id} userName={user.name} />;
+  return <TeacherDashboardClient />;
 }
