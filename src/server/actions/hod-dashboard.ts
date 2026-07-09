@@ -61,11 +61,10 @@ export async function getDepartmentGuides() {
   return { guides, facultyGuides: guides, pendingInvitations, department: dept };
 }
 
-export async function inviteFacultyGuide(formData: FormData) {
+export async function inviteFacultyGuide(_prev: unknown, formData: FormData) {
   const user = await requireHOD();
   const dept = user.department ?? "";
   const email = formData.get("email") as string;
-  const name = formData.get("name") as string;
   if (!email || !email.includes("@")) {
     return { success: false, error: "Valid email is required" };
   }
@@ -76,7 +75,7 @@ export async function inviteFacultyGuide(formData: FormData) {
     return { success: false, error: "An active invitation for this email already exists" };
   }
   await prisma.facultyGuideInvitation.create({
-    data: { department: dept, email: email.toLowerCase().trim(), name: name.trim() || null, invitedByUserId: user.id },
+    data: { department: dept, email: email.toLowerCase().trim(), invitedByUserId: user.id },
   });
   revalidatePath("/hod/guides");
   return { success: true, error: null };
@@ -175,7 +174,7 @@ export async function getDepartmentConfiguration() {
   };
 }
 
-export async function updateDepartmentConfiguration(formData: FormData) {
+export async function updateDepartmentConfiguration(_prev: unknown, formData: FormData) {
   const user = await requireHOD();
   const dept = user.department;
   if (!dept) throw new Error("HOD has no department assigned");

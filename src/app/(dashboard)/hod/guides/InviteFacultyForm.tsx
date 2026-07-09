@@ -5,31 +5,10 @@ import { Button } from "@/components/ui/button";
 import { inviteFacultyGuide } from "@/server/actions/hod-dashboard";
 
 export function InviteFacultyForm() {
-  const [state, formAction, pending] = useActionState(
-    async (_prev: { success: boolean; error: string | null } | null, formData: FormData) => {
-      return inviteFacultyGuide(formData);
-    },
-    null,
-  );
+  const [state, formAction, pending] = useActionState(inviteFacultyGuide, null);
 
   return (
     <form action={formAction} className="space-y-3">
-      <div>
-        <label
-          htmlFor="name"
-          className="block text-xs font-medium text-muted-foreground mb-1"
-        >
-          Name
-        </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          required
-          className="w-full rounded-[2px] border border-border bg-background px-3 py-2 text-sm"
-          placeholder="Dr. John Doe"
-        />
-      </div>
       <div>
         <label
           htmlFor="email"

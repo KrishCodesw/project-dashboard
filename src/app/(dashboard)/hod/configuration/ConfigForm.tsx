@@ -15,9 +15,7 @@ type ConfigData = {
 
 export function ConfigForm({ config }: { config: ConfigData }) {
   const [state, formAction, pending] = useActionState(
-    async (_prev: { success: boolean } | null, formData: FormData) => {
-      return updateDepartmentConfiguration(formData);
-    },
+    updateDepartmentConfiguration,
     null,
   );
 
