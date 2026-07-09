@@ -5,7 +5,6 @@ type DeptRow = {
   projectCount: number;
   guideCount: number;
   studentCount: number;
-  teacherCount: number;
   activeCount: number;
   completedCount: number;
   totalTasks: number;

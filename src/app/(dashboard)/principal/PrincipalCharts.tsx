@@ -21,7 +21,12 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
 
 type NameValue = { name: string; value: number };
 
+function EmptyState() {
+  return <p className="text-sm text-muted-foreground text-center py-8">No data available.</p>;
+}
+
 export function TypePieChart({ data }: { data: NameValue[] }) {
+  if (data.length === 0) return <ChartCard title="Project Type" subtitle="INHOUSE / OUTHOUSE / INDUSTRY"><EmptyState /></ChartCard>;
   return (
     <ChartCard title="Project Type" subtitle="INHOUSE / OUTHOUSE / INDUSTRY">
       <ResponsiveContainer width="100%" height={200}>
@@ -45,6 +50,7 @@ export function TypePieChart({ data }: { data: NameValue[] }) {
 }
 
 export function CategoryPieChart({ data }: { data: NameValue[] }) {
+  if (data.length === 0) return <ChartCard title="Project Category" subtitle="APPLICATION / RESEARCH / CORE"><EmptyState /></ChartCard>;
   return (
     <ChartCard title="Project Category" subtitle="APPLICATION / RESEARCH / CORE">
       <ResponsiveContainer width="100%" height={200}>
@@ -68,6 +74,7 @@ export function CategoryPieChart({ data }: { data: NameValue[] }) {
 }
 
 export function SDGBarChart({ data }: { data: NameValue[] }) {
+  if (data.length === 0) return <ChartCard title="SDG Alignment" subtitle="Sustainable Development Goals"><EmptyState /></ChartCard>;
   const labels: Record<string, string> = {
     GOAL_1_NO_POVERTY: "No Poverty", GOAL_2_ZERO_HUNGER: "Zero Hunger",
     GOAL_3_GOOD_HEALTH: "Good Health", GOAL_4_QUALITY_EDUCATION: "Quality Education",
