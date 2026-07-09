@@ -28,8 +28,8 @@ const DEPARTMENTS = [
   "B.E. Computer Engineering",
   "B.E. Information Technology",
   "B.E. Electronics & Tele-Communication",
-  "B.E - Electronics and Computer Science",
-  "B.E - Mechanical Engineering",
+  "B.E. Electronics and Computer Science",
+  "B.E. Mechanical Engineering",
   "B.E. Civil Engineering",
   "B.E. Computer Science and Engineering (Cyber Security)",
   "B.E. Mechanical and Mechatronics Engineering (Additive Manufacturing)",
@@ -52,7 +52,7 @@ const DEPARTMENT_DOMAINS: Record<string, string[]> = {
   "B.E. Computer Engineering": CE_DOMAINS,
   "B.E. Computer Science and Engineering (Cyber Security)": CE_DOMAINS, // Fallback
   "B.Tech – Computer Science & Engineering (CSE-IOT)": CE_DOMAINS, // Fallback
-  "B.E - Mechanical Engineering": [
+  "B.E. Mechanical Engineering": [
     "Manufacturing",
     "Thermal Design",
     "Automation",
@@ -99,7 +99,7 @@ const DEPARTMENT_DOMAINS: Record<string, string[]> = {
     "Electro Mechanical",
     "Mechanical Design",
   ],
-  "B.E - Electronics and Computer Science": [
+  "B.E. Electronics and Computer Science": [
     "Digital Systems and Communication",
     "Embedded Systems and IoT",
     "Software Engineering and Systems",
