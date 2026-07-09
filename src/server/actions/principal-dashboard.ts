@@ -185,7 +185,7 @@ export async function getPrincipalDashboardData() {
     const tasksByDept = await prisma.$queryRaw<Array<{ department: string; done: bigint; total: bigint }>>`
       SELECT p.department, SUM(CASE WHEN t.status = 'DONE' THEN 1 ELSE 0 END) as done, COUNT(*) as total
       FROM tasks t
-      JOIN projects p ON p.id = t.project_id
+      JOIN projects p ON p.id = t.projectId
       WHERE p.department IS NOT NULL
       GROUP BY p.department
     `;
