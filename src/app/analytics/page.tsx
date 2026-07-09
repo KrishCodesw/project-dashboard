@@ -867,7 +867,8 @@ const getTopNData = (dataMap: Record<string, number>, n: number = 7) => {
   return top;
 };
 
-type FilterType = "sdg" | "class" | "category" | "techFocus";
+// ADDED "department" to the types here
+type FilterType = "sdg" | "class" | "category" | "techFocus" | "department";
 type SelectedFilters = Record<FilterType, string[]>;
 type FilterOption = { value: string; count: number };
 type FilterOptionMap = Record<FilterType, FilterOption[]>;
@@ -877,8 +878,11 @@ const FILTER_LABELS: Record<FilterType, string> = {
   class: "Class",
   category: "Category",
   techFocus: "Tech Focus",
+  department: "Department", // Added label
 };
+
 const ALL_FILTER_TYPES: FilterType[] = [
+  "department", // Added at the top of filter menu
   "sdg",
   "class",
   "category",
@@ -890,12 +894,14 @@ const createEmptyFilters = (): SelectedFilters => ({
   class: [],
   category: [],
   techFocus: [],
+  department: [], // Initial state
 });
 const cloneFilters = (filters: SelectedFilters): SelectedFilters => ({
   sdg: [...filters.sdg],
   class: [...filters.class],
   category: [...filters.category],
   techFocus: [...filters.techFocus],
+  department: [...filters.department],
 });
 
 const getTechFocusCategory = (project: any) => {
@@ -930,6 +936,7 @@ export default function AnalyticsDashboard() {
     class: false,
     category: false,
     techFocus: false,
+    department: false, // Initial toggle state
   });
 
   // State to manage Drill-down view inside the Class filter
@@ -1032,6 +1039,11 @@ export default function AnalyticsDashboard() {
         .sort((a, b) => a.value.localeCompare(b.value));
     };
 
+    // Calculate Department distribution
+    const departments = buildCountOptions(
+      combined.map((p) => p.department || "Unspecified"),
+    );
+
     const sdgs = buildCountOptions(
       beBase.map((p) => {
         const num = parseInt(p.sdg);
@@ -1066,6 +1078,7 @@ export default function AnalyticsDashboard() {
     );
 
     return {
+      department: departments, // Inject generated department array
       sdg: sdgs,
       class: classes,
       category: categories,
@@ -1075,6 +1088,11 @@ export default function AnalyticsDashboard() {
 
   const { filteredBE, filteredRBL, displayProjects } = useMemo(() => {
     const isMatch = (p: any, stream: "BE" | "TE") => {
+      // Added match checker for Department
+      const matchesDepartment =
+        selectedFilters.department.length === 0 ||
+        selectedFilters.department.includes(p.department || "Unspecified");
+
       const matchesSdg =
         selectedFilters.sdg.length === 0 ||
         selectedFilters.sdg.includes(String(p.sdg));
@@ -1101,6 +1119,7 @@ export default function AnalyticsDashboard() {
           p.students?.some((s: any) => s.name.toLowerCase().includes(q));
       }
       return (
+        matchesDepartment &&
         matchesSdg &&
         matchesClass &&
         matchesCategory &&
@@ -2002,6 +2021,12 @@ export default function AnalyticsDashboard() {
                     <span className="text-[10px] font-black tracking-wider px-2 py-1 bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-300">
                       GRP {proj.groupId}
                     </span>
+                    {/* Render the department tag cleanly in the card header if it exists */}
+                    {isValidString(proj.department) && (
+                      <span className="text-[10px] font-semibold text-neutral-500 uppercase">
+                        {proj.department}
+                      </span>
+                    )}
                   </div>
                   <h4 className="font-bold text-sm text-neutral-900 dark:text-white line-clamp-2 mb-4 leading-snug group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">
                     {proj.title}
