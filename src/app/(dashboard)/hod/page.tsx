@@ -1,8 +1,6 @@
-import { FolderKanban, Users, GraduationCap, Mail } from "lucide-react";
 import { requireHOD } from "@/lib/coe-guard";
 import { getHODDashboardData } from "@/server/actions/hod-dashboard";
 import { getCurrentAcademicYear } from "@/lib/academic-year";
-import { StatCard } from "@/components/dashboard/StatCard";
 
 export default async function HODDashboardPage() {
   const user = await requireHOD();
@@ -19,30 +17,22 @@ export default async function HODDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Projects"
-          value={data.projects.length}
-          icon={FolderKanban}
-          color="indigo"
-        />
-        <StatCard
-          title="Faculty Guides"
-          value={data.totalTeachers}
-          icon={GraduationCap}
-          color="violet"
-        />
-        <StatCard
-          title="Students"
-          value={data.totalStudents}
-          icon={Users}
-          color="emerald"
-        />
-        <StatCard
-          title="Pending Invitations"
-          value={data.activeInvitations}
-          icon={Mail}
-          color="amber"
-        />
+        <div className="rounded-[2px] border border-border bg-card p-6 shadow-none">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Projects</p>
+          <p className="text-3xl font-bold mt-1">{data.projects.length}</p>
+        </div>
+        <div className="rounded-[2px] border border-border bg-card p-6 shadow-none">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Faculty Guides</p>
+          <p className="text-3xl font-bold mt-1">{data.totalTeachers}</p>
+        </div>
+        <div className="rounded-[2px] border border-border bg-card p-6 shadow-none">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Students</p>
+          <p className="text-3xl font-bold mt-1">{data.totalStudents}</p>
+        </div>
+        <div className="rounded-[2px] border border-border bg-card p-6 shadow-none">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Pending Invitations</p>
+          <p className="text-3xl font-bold mt-1">{data.activeInvitations}</p>
+        </div>
       </div>
 
       <div>

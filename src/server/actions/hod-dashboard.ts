@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireHOD } from "@/lib/coe-guard";
 import { getCurrentAcademicYear } from "@/lib/academic-year";
+import { sendEmail } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -80,6 +81,11 @@ export async function inviteFacultyGuide(formData: FormData) {
   await prisma.facultyGuideInvitation.create({
     data: { department: dept, email: email.toLowerCase().trim(), invitedByUserId: user.id },
   });
+  sendEmail({
+    to: email,
+    subject: `Faculty Guide Invitation — ${dept}`,
+    html: `<p>You have been invited to become a faculty guide for <strong>${dept}</strong>.</p><p>Please log in to the Academic Project Dashboard to accept or decline this invitation.</p>`,
+  }).catch(() => console.warn("[hod] Failed to send invitation email, but invitation was created."));
   revalidatePath("/hod/guides");
 }
 
@@ -157,6 +163,20 @@ export async function assignGuideByEmail(email: string) {
   return { success: true, userId: targetUser.id };
 }
 
+export async function searchFaculty(query: string) {
+  if (!query || query.length < 2) return [];
+  const users = await prisma.user.findMany({
+    where: {
+      role: "TEACHER",
+      email: { contains: query },
+    },
+    select: { id: true, name: true, email: true, department: true },
+    take: 10,
+    orderBy: { email: "asc" },
+  });
+  return users;
+}
+
 export async function addGuide(formData: FormData) {
   const user = await requireHOD();
   const dept = user.department;
@@ -200,6 +220,11 @@ export async function addGuide(formData: FormData) {
   await prisma.facultyGuideInvitation.create({
     data: { department: dept, email, invitedByUserId: user.id },
   });
+  sendEmail({
+    to: email,
+    subject: `Faculty Guide Invitation — ${dept}`,
+    html: `<p>You have been invited to become a faculty guide for <strong>${dept}</strong>.</p><p>Please log in to the Academic Project Dashboard to accept or decline this invitation.</p>`,
+  }).catch(() => console.warn("[hod] Failed to send invitation email, but invitation was created."));
   redirect("/hod/guides?msg=invited");
 }
 
