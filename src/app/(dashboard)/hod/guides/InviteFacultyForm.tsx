@@ -1,19 +1,27 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { inviteFacultyGuide } from "@/server/actions/hod-dashboard";
 
 export function InviteFacultyForm() {
-  const [state, formAction, pending] = useActionState(inviteFacultyGuide, null);
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<{ success: boolean; error: string | null } | null>(null);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    e.currentTarget.reset();
+    startTransition(async () => {
+      const res = await inviteFacultyGuide(formData);
+      setResult(res);
+    });
+  };
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label
-          htmlFor="email"
-          className="block text-xs font-medium text-muted-foreground mb-1"
-        >
+        <label htmlFor="email" className="block text-xs font-medium text-muted-foreground mb-1">
           Email
         </label>
         <input
@@ -25,10 +33,10 @@ export function InviteFacultyForm() {
           placeholder="john.doe@tcetmumbai.in"
         />
       </div>
-      {state?.error && (
-        <p className="text-xs text-destructive">{state.error}</p>
+      {result?.error && (
+        <p className="text-xs text-destructive">{result.error}</p>
       )}
-      {state?.success && (
+      {result?.success && (
         <p className="text-xs text-emerald-600">Invitation sent successfully.</p>
       )}
       <Button type="submit" disabled={pending} size="sm">

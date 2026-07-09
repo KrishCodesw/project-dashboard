@@ -1,5 +1,6 @@
 import { requireHOD } from "@/lib/coe-guard";
 import { getDepartmentGuides } from "@/server/actions/hod-dashboard";
+import { AddGuideForm } from "./AddGuideForm";
 import { InviteFacultyForm } from "./InviteFacultyForm";
 import { PendingInvitations } from "./PendingInvitations";
 
@@ -17,7 +18,7 @@ export default async function FacultyGuidesPage() {
       </div>
 
       <div className="rounded-[2px] border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold mb-4">Current Faculty</h2>
+        <h2 className="text-sm font-semibold mb-4">Current Faculty Guides</h2>
         {data.facultyGuides.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No faculty guides found for this department.
@@ -39,6 +40,14 @@ export default async function FacultyGuidesPage() {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="rounded-[2px] border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold mb-4">Add Faculty Guide</h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Enter an email to add an existing faculty member as a guide. If the faculty is not registered yet, an invitation email will be sent.
+        </p>
+        <AddGuideForm />
       </div>
 
       <div className="rounded-[2px] border border-border bg-card p-5">

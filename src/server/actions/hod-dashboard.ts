@@ -61,7 +61,7 @@ export async function getDepartmentGuides() {
   return { guides, facultyGuides: guides, pendingInvitations, department: dept };
 }
 
-export async function inviteFacultyGuide(_prev: unknown, formData: FormData) {
+export async function inviteFacultyGuide(formData: FormData) {
   const user = await requireHOD();
   const dept = user.department ?? "";
   const email = formData.get("email") as string;
@@ -112,6 +112,33 @@ export async function assignGuide(facultyUserId: string) {
 
   revalidatePath("/hod/guides");
   return { success: true };
+}
+
+export async function assignGuideByEmail(email: string) {
+  const user = await requireHOD();
+  const dept = user.department;
+  if (!dept) throw new Error("HOD has no department assigned");
+
+  const targetUser = await prisma.user.findUnique({
+    where: { email: email.toLowerCase().trim() },
+    select: { id: true, department: true, role: true, isActive: true },
+  });
+
+  if (!targetUser) {
+    throw new Error("USER_NOT_FOUND");
+  }
+  if (targetUser.role !== "TEACHER") {
+    throw new Error("User is not a faculty member");
+  }
+  if (targetUser.department !== dept) {
+    throw new Error("Cannot assign guide from a different department");
+  }
+  if (!targetUser.isActive) {
+    throw new Error("Cannot assign inactive faculty as guide");
+  }
+
+  revalidatePath("/hod/guides");
+  return { success: true, userId: targetUser.id };
 }
 
 export async function inviteGuide(email: string, name?: string) {
@@ -174,7 +201,7 @@ export async function getDepartmentConfiguration() {
   };
 }
 
-export async function updateDepartmentConfiguration(_prev: unknown, formData: FormData) {
+export async function updateDepartmentConfiguration(formData: FormData) {
   const user = await requireHOD();
   const dept = user.department;
   if (!dept) throw new Error("HOD has no department assigned");
@@ -188,7 +215,6 @@ export async function updateDepartmentConfiguration(_prev: unknown, formData: Fo
     update: { divisionCount, studentCount, projectGroupCount, configuredByUserId: user.id },
   });
   revalidatePath("/hod/configuration");
-  return { success: true };
 }
 
 export async function updateDepartmentConfigurationJson(data: {
