@@ -1,8 +1,3 @@
-"use client";
-
-import { useTransition } from "react";
-import { formatDistanceToNow } from "date-fns";
-import { Button } from "@/components/ui/button";
 import { cancelInvitation } from "@/server/actions/hod-dashboard";
 
 type Invitation = {
@@ -14,14 +9,8 @@ type Invitation = {
 };
 
 export function PendingInvitations({ invitations }: { invitations: Invitation[] }) {
-  const [pendingId, startTransition] = useTransition();
-
   if (invitations.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        No pending invitations.
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">No pending invitations.</p>;
   }
 
   return (
@@ -32,26 +21,20 @@ export function PendingInvitations({ invitations }: { invitations: Invitation[] 
           className="flex items-center justify-between py-2 border-b border-border last:border-0"
         >
           <div>
-            <p className="text-sm font-medium">
-              {inv.name || inv.email}
-            </p>
+            <p className="text-sm font-medium">{inv.name || inv.email}</p>
             <p className="text-xs text-muted-foreground">
-              {inv.email} · {formatDistanceToNow(new Date(inv.createdAt), { addSuffix: true })}
+              {inv.email}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={pendingId}
-            onClick={() => {
-              startTransition(async () => {
-                await cancelInvitation(inv.id);
-              });
-            }}
-            className="text-destructive hover:text-destructive"
-          >
-            Cancel
-          </Button>
+          <form action={cancelInvitation}>
+            <input type="hidden" name="invitationId" value={inv.id} />
+            <button
+              type="submit"
+              className="text-xs text-destructive hover:text-destructive/80 underline"
+            >
+              Cancel
+            </button>
+          </form>
         </div>
       ))}
     </div>

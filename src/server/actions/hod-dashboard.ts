@@ -66,23 +66,24 @@ export async function inviteFacultyGuide(formData: FormData) {
   const dept = user.department ?? "";
   const email = formData.get("email") as string;
   if (!email || !email.includes("@")) {
-    return { success: false, error: "Valid email is required" };
+    throw new Error("Valid email is required");
   }
   const existing = await prisma.facultyGuideInvitation.findFirst({
     where: { email, department: dept, status: "PENDING" },
   });
   if (existing) {
-    return { success: false, error: "An active invitation for this email already exists" };
+    throw new Error("An active invitation for this email already exists");
   }
   await prisma.facultyGuideInvitation.create({
     data: { department: dept, email: email.toLowerCase().trim(), invitedByUserId: user.id },
   });
   revalidatePath("/hod/guides");
-  return { success: true, error: null };
 }
 
-export async function cancelInvitation(invitationId: string) {
+export async function cancelInvitation(formData: FormData) {
   await requireHOD();
+  const invitationId = formData.get("invitationId") as string;
+  if (!invitationId) throw new Error("Missing invitationId");
   await prisma.facultyGuideInvitation.update({
     where: { id: invitationId },
     data: { status: "CANCELLED" },
@@ -139,6 +140,41 @@ export async function assignGuideByEmail(email: string) {
 
   revalidatePath("/hod/guides");
   return { success: true, userId: targetUser.id };
+}
+
+export async function addGuide(formData: FormData) {
+  const user = await requireHOD();
+  const dept = user.department;
+  if (!dept) throw new Error("HOD has no department assigned");
+  const email = (formData.get("email") as string || "").toLowerCase().trim();
+  if (!email || !email.includes("@")) {
+    throw new Error("Valid email is required");
+  }
+
+  const existingUser = await prisma.user.findFirst({
+    where: { email, role: "TEACHER" },
+    select: { id: true, department: true, role: true, isActive: true },
+  });
+
+  if (existingUser) {
+    if (!existingUser.isActive) {
+      throw new Error("This faculty account is inactive");
+    }
+    revalidatePath("/hod/guides");
+    return;
+  }
+
+  const pending = await prisma.facultyGuideInvitation.findFirst({
+    where: { email, department: dept, status: "PENDING" },
+  });
+  if (pending) {
+    throw new Error("An active invitation for this email already exists");
+  }
+
+  await prisma.facultyGuideInvitation.create({
+    data: { department: dept, email, invitedByUserId: user.id },
+  });
+  revalidatePath("/hod/guides");
 }
 
 export async function inviteGuide(email: string, name?: string) {

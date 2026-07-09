@@ -1,7 +1,3 @@
-"use client";
-
-import { useFormStatus } from "react-dom";
-import { Button } from "@/components/ui/button";
 import { updateDepartmentConfiguration } from "@/server/actions/hod-dashboard";
 
 type ConfigData = {
@@ -12,15 +8,6 @@ type ConfigData = {
   projectGroupCount: number;
   updatedAt: Date | null;
 };
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} size="sm">
-      {pending ? "Saving..." : "Save Configuration"}
-    </Button>
-  );
-}
 
 export function ConfigForm({ config }: { config: ConfigData }) {
   return (
@@ -86,7 +73,12 @@ export function ConfigForm({ config }: { config: ConfigData }) {
           className="w-full rounded-[2px] border border-border bg-background px-3 py-2 text-sm"
         />
       </div>
-      <SubmitButton />
+      <button
+        type="submit"
+        className="inline-flex items-center justify-center h-9 px-4 rounded-sm text-[10px] font-mono uppercase tracking-[0.2em] bg-primary text-primary-foreground hover:bg-primary/90 border border-transparent transition-all duration-300"
+      >
+        Save Configuration
+      </button>
     </form>
   );
 }

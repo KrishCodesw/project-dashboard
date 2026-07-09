@@ -1,25 +1,8 @@
-"use client";
-
-import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
 import { inviteFacultyGuide } from "@/server/actions/hod-dashboard";
 
 export function InviteFacultyForm() {
-  const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<{ success: boolean; error: string | null } | null>(null);
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    e.currentTarget.reset();
-    startTransition(async () => {
-      const res = await inviteFacultyGuide(formData);
-      setResult(res);
-    });
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form action={inviteFacultyGuide} className="space-y-3">
       <div>
         <label htmlFor="email" className="block text-xs font-medium text-muted-foreground mb-1">
           Email
@@ -33,15 +16,12 @@ export function InviteFacultyForm() {
           placeholder="john.doe@tcetmumbai.in"
         />
       </div>
-      {result?.error && (
-        <p className="text-xs text-destructive">{result.error}</p>
-      )}
-      {result?.success && (
-        <p className="text-xs text-emerald-600">Invitation sent successfully.</p>
-      )}
-      <Button type="submit" disabled={pending} size="sm">
-        {pending ? "Sending..." : "Send Invitation"}
-      </Button>
+      <button
+        type="submit"
+        className="inline-flex items-center justify-center h-9 px-4 rounded-sm text-[10px] font-mono uppercase tracking-[0.2em] bg-primary text-primary-foreground hover:bg-primary/90 border border-transparent transition-all duration-300"
+      >
+        Send Invitation
+      </button>
     </form>
   );
 }
