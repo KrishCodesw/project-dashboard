@@ -103,11 +103,13 @@ export function Sidebar({ role, userName, userIsHod = false, userIsPrincipal = f
     role === "ADMIN" ? adminNav : role === "TEACHER" ? teacherNav : studentNav;
 
   const roleLabel =
-    role === "ADMIN"
-      ? "Administrator"
-      : role === "TEACHER"
-        ? "Teacher"
-        : "Student";
+    userIsPrincipal
+      ? "Principal"
+      : role === "ADMIN"
+        ? "Administrator"
+        : role === "TEACHER"
+          ? "Teacher"
+          : "Student";
 
   const getSidebarWidth = () => {
     if (!mounted) return 240;
