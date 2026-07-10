@@ -141,6 +141,7 @@ export default function AnimatedShowcase({ projects }: { projects: any[] }) {
               alt="TCET"
               fill
               priority
+              unoptimized
               className="object-cover"
             />
           </div>
