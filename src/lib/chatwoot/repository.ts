@@ -129,7 +129,7 @@ export const chatwootRepo = {
 
   listConversationsByContact(contactId: number) {
     return request<{ payload: ChatwootConversationResponse[] }>(
-      "GET", `/conversations?contact_id=${contactId}`, undefined, true,
+      "GET", `/contacts/${contactId}/conversations`, undefined, true,
     ).then((r) => r.payload ?? []);
   },
 
