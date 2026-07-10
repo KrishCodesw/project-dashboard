@@ -115,8 +115,13 @@ export const chatwootRepo = {
 
   // ── Conversations ─────────────────────────────────────────────────────
   createConversation(contactId: number, customAttributes: Record<string, string>) {
+    const sourceId = randomUUID();
     return request<ChatwootConversationResponse>(
-      "POST", `/contacts/${contactId}/conversations`, { custom_attributes: customAttributes },
+      "POST", "/conversations", {
+        source_id: sourceId,
+        contact_id: contactId,
+        custom_attributes: customAttributes,
+      },
     );
   },
 
