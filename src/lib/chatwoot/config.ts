@@ -3,6 +3,7 @@ export const chatwootConfig = {
   accountId: process.env.CHATWOOT_ACCOUNT_ID ?? "",
   apiToken: process.env.CHATWOOT_API_TOKEN ?? "",
   webhookSecret: process.env.CHATWOOT_WEBHOOK_SECRET ?? "",
+  inboxId: process.env.CHATWOOT_INBOX_ID ?? "",
 };
 
 export function validateChatwootConfig(): void {
