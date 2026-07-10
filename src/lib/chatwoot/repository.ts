@@ -72,6 +72,7 @@ export interface ChatwootConversationResponse {
   created_at: number;
   last_activity_at: number;
   messages_count?: number;
+  messages?: Array<unknown>;
 }
 
 export interface ChatwootMessageResponse {

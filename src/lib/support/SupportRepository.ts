@@ -134,7 +134,7 @@ function normalizeTicket(cw: ChatwootConversationResponse): SupportTicket {
     ownerEmail,
     createdAt: new Date(cw.created_at * 1000).toISOString(),
     lastActivityAt: new Date(cw.last_activity_at * 1000).toISOString(),
-    messageCount: cw.messages_count ?? 0,
+    messageCount: cw.messages_count ?? cw.messages?.length ?? 0,
     labels: cw.labels ?? [],
   };
 }
