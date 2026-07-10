@@ -126,7 +126,7 @@ function normalizeTicket(cw: ChatwootConversationResponse): SupportTicket {
 
   return {
     id: cw.id,
-    subject: cw.subject ?? "(No subject)",
+    subject: cw.subject ?? cw.custom_attributes?.subject ?? "(No subject)",
     description: cw.custom_attributes?.[CW_ATTR.CATEGORY] ?? null,
     status: cw.status ?? "open",
     priority: cw.priority,

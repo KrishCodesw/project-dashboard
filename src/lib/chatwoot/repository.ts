@@ -117,16 +117,17 @@ export const chatwootRepo = {
   // ── Conversations ─────────────────────────────────────────────────────
   createConversation(contactId: number, customAttributes: Record<string, string>, subject?: string) {
     const sourceId = randomUUID();
+    const attrs = { ...customAttributes };
+    if (subject) {
+      attrs.subject = subject;
+    }
     const body: Record<string, unknown> = {
       source_id: sourceId,
       contact_id: contactId,
-      custom_attributes: customAttributes,
+      custom_attributes: attrs,
     };
     if (chatwootConfig.inboxId) {
       body.inbox_id = Number(chatwootConfig.inboxId);
-    }
-    if (subject) {
-      body.message = { content: subject };
     }
     return request<ChatwootConversationResponse>("POST", "/conversations", body);
   },
