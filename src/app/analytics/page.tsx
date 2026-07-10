@@ -21,7 +21,6 @@ import {
   FolderKanban,
   GraduationCap,
   Lightbulb,
-  TrendingUp,
   Target,
   Award,
   Layers,
@@ -30,7 +29,6 @@ import {
   X,
   Filter,
   ChevronDown,
-  ChevronRight,
 } from "lucide-react";
 
 import beProjectsRaw from "../majorprojects/BE_NBA_groups.json";
@@ -867,7 +865,6 @@ const getTopNData = (dataMap: Record<string, number>, n: number = 7) => {
   return top;
 };
 
-// ADDED "department" to the types here
 type FilterType = "sdg" | "class" | "category" | "techFocus" | "department";
 type SelectedFilters = Record<FilterType, string[]>;
 type FilterOption = { value: string; count: number };
@@ -878,11 +875,11 @@ const FILTER_LABELS: Record<FilterType, string> = {
   class: "Class",
   category: "Category",
   techFocus: "Tech Focus",
-  department: "Department", // Added label
+  department: "Department",
 };
 
 const ALL_FILTER_TYPES: FilterType[] = [
-  "department", // Added at the top of filter menu
+  "department",
   "sdg",
   "class",
   "category",
@@ -894,14 +891,7 @@ const createEmptyFilters = (): SelectedFilters => ({
   class: [],
   category: [],
   techFocus: [],
-  department: [], // Initial state
-});
-const cloneFilters = (filters: SelectedFilters): SelectedFilters => ({
-  sdg: [...filters.sdg],
-  class: [...filters.class],
-  category: [...filters.category],
-  techFocus: [...filters.techFocus],
-  department: [...filters.department],
+  department: [],
 });
 
 const getTechFocusCategory = (project: any) => {
@@ -922,10 +912,11 @@ export default function AnalyticsDashboard() {
   const [activeTab, setActiveTab] = useState<"overview" | "be" | "rbl">(
     "overview",
   );
+
+  // Directly drive UI from selectedFilters (Real-time updates)
   const [selectedFilters, setSelectedFilters] =
     useState<SelectedFilters>(createEmptyFilters());
-  const [draftFilters, setDraftFilters] =
-    useState<SelectedFilters>(createEmptyFilters());
+
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const filterButtonRef = useRef<HTMLButtonElement | null>(null);
   const filterPopoverRef = useRef<HTMLDivElement | null>(null);
@@ -936,15 +927,13 @@ export default function AnalyticsDashboard() {
     class: false,
     category: false,
     techFocus: false,
-    department: false, // Initial toggle state
+    department: false,
   });
 
-  // State to manage Drill-down view inside the Class filter
   const [activeDeptView, setActiveDeptView] = useState<string | null>(null);
 
   useEffect(() => {
     setSelectedFilters(createEmptyFilters());
-    setDraftFilters(createEmptyFilters());
     setSearchQuery("");
     setActiveDeptView(null);
   }, [activeTab]);
@@ -984,26 +973,10 @@ export default function AnalyticsDashboard() {
     });
   };
 
-  const toggleDraftFilter = (type: FilterType, value: string) => {
-    setDraftFilters((prev) => {
-      const hasValue = prev[type].includes(value);
-      return {
-        ...prev,
-        [type]: hasValue
-          ? prev[type].filter((v) => v !== value)
-          : [...prev[type], value],
-      };
-    });
-  };
-
   const clearAllFilters = () => {
     setSelectedFilters(createEmptyFilters());
-    setDraftFilters(createEmptyFilters());
   };
-  const applyDraftFilters = () => {
-    setSelectedFilters(cloneFilters(draftFilters));
-    setShowFilterPanel(false);
-  };
+
   const toggleSection = (type: FilterType) => {
     setExpandedSections((prev) => ({ ...prev, [type]: !prev[type] }));
   };
@@ -1012,6 +985,7 @@ export default function AnalyticsDashboard() {
     () => Object.values(selectedFilters).some((values) => values.length > 0),
     [selectedFilters],
   );
+
   const selectedFilterCount = useMemo(
     () =>
       Object.values(selectedFilters).reduce(
@@ -1039,7 +1013,6 @@ export default function AnalyticsDashboard() {
         .sort((a, b) => a.value.localeCompare(b.value));
     };
 
-    // Calculate Department distribution
     const departments = buildCountOptions(
       combined.map((p) => p.department || "Unspecified"),
     );
@@ -1078,7 +1051,7 @@ export default function AnalyticsDashboard() {
     );
 
     return {
-      department: departments, // Inject generated department array
+      department: departments,
       sdg: sdgs,
       class: classes,
       category: categories,
@@ -1088,7 +1061,6 @@ export default function AnalyticsDashboard() {
 
   const { filteredBE, filteredRBL, displayProjects } = useMemo(() => {
     const isMatch = (p: any, stream: "BE" | "TE") => {
-      // Added match checker for Department
       const matchesDepartment =
         selectedFilters.department.length === 0 ||
         selectedFilters.department.includes(p.department || "Unspecified");
@@ -1299,7 +1271,6 @@ export default function AnalyticsDashboard() {
   const CustomTooltipStyle =
     "bg-neutral-900 dark:bg-black border border-neutral-800 rounded-lg px-4 py-3 shadow-2xl text-white text-xs max-w-[240px] whitespace-normal font-medium tracking-wide";
 
-  // --- Dynamic Class Filter Data Prep ---
   const availableDepts =
     activeTab === "be" ? ["BE"] : activeTab === "rbl" ? ["TE"] : ["BE", "TE"];
   const isShowingDepartments = availableDepts.length > 1 && !activeDeptView;
@@ -1378,7 +1349,7 @@ export default function AnalyticsDashboard() {
                   <Filter className="w-3.5 h-3.5" /> Filters (
                   {selectedFilterCount})
                 </button>
-                {/* Filter Popover */}
+
                 {showFilterPanel && (
                   <div
                     ref={filterPopoverRef}
@@ -1404,29 +1375,21 @@ export default function AnalyticsDashboard() {
                           {expandedSections[type] && (
                             <div className="mt-2 space-y-2">
                               {filterOptions[type]?.map((option) => {
-                                const isSelected = draftFilters[type].includes(
-                                  option.value,
-                                );
-                                const hasGreyedOut =
-                                  selectedFilters[type].length > 0 &&
-                                  !selectedFilters[type].includes(option.value);
+                                const isSelected = selectedFilters[
+                                  type
+                                ].includes(option.value);
 
                                 return (
                                   <label
                                     key={option.value}
-                                    className={`flex items-center gap-2 cursor-pointer text-xs p-1 rounded transition-colors ${
-                                      hasGreyedOut
-                                        ? "opacity-40"
-                                        : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                    }`}
+                                    className="flex items-center gap-2 cursor-pointer text-xs p-1 rounded transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
                                   >
                                     <input
                                       type="checkbox"
                                       checked={isSelected}
                                       onChange={() =>
-                                        toggleDraftFilter(type, option.value)
+                                        toggleFilter(type, option.value)
                                       }
-                                      disabled={hasGreyedOut}
                                       className="w-3 h-3 rounded cursor-pointer accent-indigo-500"
                                     />
                                     <span className="text-neutral-700 dark:text-neutral-300">
@@ -1446,18 +1409,16 @@ export default function AnalyticsDashboard() {
 
                     <div className="mt-4 flex gap-2 border-t border-neutral-200 dark:border-neutral-800 pt-3">
                       <button
-                        onClick={() => {
-                          setDraftFilters(createEmptyFilters());
-                        }}
+                        onClick={clearAllFilters}
                         className="flex-1 px-3 py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded transition-colors"
                       >
                         Reset
                       </button>
                       <button
-                        onClick={applyDraftFilters}
+                        onClick={() => setShowFilterPanel(false)}
                         className="flex-1 px-3 py-2 text-xs font-semibold bg-indigo-500 hover:bg-indigo-600 text-white rounded transition-colors"
                       >
-                        Apply Filters
+                        Done
                       </button>
                     </div>
                   </div>
@@ -2021,7 +1982,6 @@ export default function AnalyticsDashboard() {
                     <span className="text-[10px] font-black tracking-wider px-2 py-1 bg-neutral-200 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-300">
                       GRP {proj.groupId}
                     </span>
-                    {/* Render the department tag cleanly in the card header if it exists */}
                     {isValidString(proj.department) && (
                       <span className="text-[10px] font-semibold text-neutral-500 uppercase">
                         {proj.department}
