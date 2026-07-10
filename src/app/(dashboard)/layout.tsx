@@ -13,6 +13,8 @@ export default async function DashboardLayout({
 }) {
   const requestHeaders = await headers();
   const user = await resolveUserFromHeaders(requestHeaders);
+
+  const isSupportEnabled = process.env.SUPPORT_ENABLED === "true";
   if (!user) {
     redirect("https://tcetcercd.in/login?reason=session_expired");
   }
@@ -36,6 +38,7 @@ export default async function DashboardLayout({
       userImage={user.avatarUrl}
       userIsHod={isHod}
       userIsPrincipal={isUserPrincipal}
+      isSupportEnabled={isSupportEnabled}
     >
       {children}
     </DashboardShell>

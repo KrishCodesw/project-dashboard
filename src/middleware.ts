@@ -12,7 +12,8 @@ export default async function middleware(req: NextRequest) {
     pathname.startsWith("/rblprojects-te") ||
     pathname.startsWith("/api/cron") ||
     pathname.startsWith("/api/storage") ||
-    pathname.startsWith("/api/internal");
+    pathname.startsWith("/api/internal") ||
+    pathname.startsWith("/api/webhooks");
 
   if (isPublicRoute) {
     return NextResponse.next();

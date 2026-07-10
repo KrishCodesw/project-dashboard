@@ -1,0 +1,72 @@
+version: "3.8"
+
+services:
+  chatwoot:
+    image: chatwoot/chatwoot:v4.14.0
+    environment:
+      - POSTGRES_HOST=chatwoot_db
+      - POSTGRES_USER=chatwoot
+      - POSTGRES_PASSWORD=chatwoot
+      - POSTGRES_DATABASE=chatwoot
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${CHATWOOT_SECRET_KEY_BASE:-change-me}
+      - FRONTEND_URL=https://support.coe.example.com
+      - NODE_ENV=production
+      - INSTALLATION_ENV=docker
+    depends_on:
+      chatwoot_db:
+        condition: service_healthy
+      chatwoot_redis:
+        condition: service_started
+    volumes:
+      - chatwoot_storage:/app/storage
+    restart: unless-stopped
+
+  chatwoot_sidekiq:
+    image: chatwoot/chatwoot:v4.14.0
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    environment:
+      - POSTGRES_HOST=chatwoot_db
+      - POSTGRES_USER=chatwoot
+      - POSTGRES_PASSWORD=chatwoot
+      - POSTGRES_DATABASE=chatwoot
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=${CHATWOOT_SECRET_KEY_BASE:-change-me}
+      - NODE_ENV=production
+    depends_on:
+      chatwoot_db:
+        condition: service_healthy
+      chatwoot_redis:
+        condition: service_started
+    restart: unless-stopped
+
+  chatwoot_db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=chatwoot
+      - POSTGRES_PASSWORD=chatwoot
+      - POSTGRES_DB=chatwoot
+    volumes:
+      - chatwoot_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatwoot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  chatwoot_redis:
+    image: redis:7-alpine
+    volumes:
+      - chatwoot_redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  chatwoot_storage:
+  chatwoot_pgdata:
+  chatwoot_redis_data:
+
+networks:
+  default:
+    name: project-dashboard
+    external: true

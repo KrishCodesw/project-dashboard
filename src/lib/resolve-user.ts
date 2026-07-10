@@ -21,13 +21,15 @@ export type SyncUserInput = {
   isHod?: boolean;
 };
 
-type ResolvedUser = {
+export type ResolvedUser = {
   id: string;
   name: string;
   email: string;
   role: "ADMIN" | "TEACHER" | "STUDENT";
   isActive: boolean;
   avatarUrl: string | null;
+  department?: string | null;
+  uid?: string | null;
 };
 
 function normalizeEmail(email: string) {
@@ -60,7 +62,7 @@ export async function upsertDashboardUser(input: SyncUserInput): Promise<Resolve
       where: { email },
       select: {
         id: true, name: true, email: true, role: true,
-        isActive: true, avatarUrl: true, department: true,
+        isActive: true, avatarUrl: true, department: true, uid: true,
       },
     });
 
@@ -105,6 +107,8 @@ export async function upsertDashboardUser(input: SyncUserInput): Promise<Resolve
         role: existing.role,
         isActive: input.status ? input.status === "ACTIVE" : existing.isActive,
         avatarUrl: existing.avatarUrl,
+        department: existing.department,
+        uid: existing.uid,
       };
     }
 
@@ -123,7 +127,7 @@ export async function upsertDashboardUser(input: SyncUserInput): Promise<Resolve
       },
       select: {
         id: true, name: true, email: true, role: true,
-        isActive: true, avatarUrl: true,
+        isActive: true, avatarUrl: true, department: true, uid: true,
       },
     });
 

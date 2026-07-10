@@ -16,6 +16,8 @@ const typeIcons: Record<string, { color: string; bg: string }> = {
   FEEDBACK_GIVEN: { color: "text-emerald-400", bg: "bg-emerald-500/10" },
   PROJECT_UPDATED: { color: "text-blue-400", bg: "bg-blue-500/10" },
   MILESTONE_DUE: { color: "text-rose-400", bg: "bg-rose-500/10" },
+  TICKET_CREATED: { color: "text-orange-400", bg: "bg-orange-500/10" },
+  TICKET_REPLIED: { color: "text-cyan-400", bg: "bg-cyan-500/10" },
 };
 
 interface NotificationPanelProps {

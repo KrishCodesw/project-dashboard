@@ -68,6 +68,8 @@ enum NotificationType {
   CHANGES_REQUESTED
   PROJECT_APPROVED
   PROJECT_PUBLISHED
+  TICKET_CREATED
+  TICKET_REPLIED
 }
 
 enum ShowcaseProjectStatus {

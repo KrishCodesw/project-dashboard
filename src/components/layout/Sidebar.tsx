@@ -25,6 +25,7 @@ import {
   Building2,
   FileText,
   SlidersHorizontal,
+  LifeBuoy,
 } from "lucide-react";
 import {
   Tooltip,
@@ -58,6 +59,7 @@ const adminNav: NavItem[] = [
   { title: "Email Logs", href: "/admin/email-logs", icon: Mail },
   { title: "Showcase", href: "/admin/showcase", icon: Sparkles },
   { title: "Settings", href: "/admin/settings", icon: Settings },
+  { title: "Support", href: "/support/tickets", icon: LifeBuoy },
 ];
 
 const teacherNav: NavItem[] = [
@@ -65,6 +67,7 @@ const teacherNav: NavItem[] = [
   { title: "Projects", href: "/teacher/projects", icon: FolderKanban },
   { title: "Analytics", href: "/teacher/analytics", icon: BarChart3 },
   { title: "Showcase", href: "/showcase/my-projects", icon: Sparkles },
+  { title: "Support", href: "/support/tickets", icon: LifeBuoy },
 ];
 
 const studentNav: NavItem[] = [
@@ -79,9 +82,10 @@ interface SidebarProps {
   userName: string;
   userIsHod?: boolean;
   userIsPrincipal?: boolean;
+  isSupportEnabled?: boolean;
 }
 
-export function Sidebar({ role, userName, userIsHod = false, userIsPrincipal = false }: SidebarProps) {
+export function Sidebar({ role, userName, userIsHod = false, userIsPrincipal = false, isSupportEnabled = false }: SidebarProps) {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebar, setSidebarCollapsed } = useUIStore();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -100,7 +104,8 @@ export function Sidebar({ role, userName, userIsHod = false, userIsPrincipal = f
   React.useEffect(() => setMounted(true), []);
 
   const navItems =
-    role === "ADMIN" ? adminNav : role === "TEACHER" ? teacherNav : studentNav;
+    (role === "ADMIN" ? adminNav : role === "TEACHER" ? teacherNav : studentNav)
+      .filter((item) => item.href.startsWith("/support") ? isSupportEnabled : true);
 
   const roleLabel =
     userIsPrincipal
