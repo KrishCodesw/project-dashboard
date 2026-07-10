@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: "dashboard",
-      script: "node",
-      args: ".next/standalone/server.js",
+      script: "npm",
+      args: "start",
       env: {
         NODE_ENV: "production",
         PORT: 4003,
