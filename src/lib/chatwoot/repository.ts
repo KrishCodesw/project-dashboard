@@ -90,13 +90,14 @@ export const chatwootRepo = {
   // ── Contacts ──────────────────────────────────────────────────────────
   findContactByIdentifier(identifier: string) {
     return request<{ payload: ChatwootContactResponse[] }>(
-      "GET", `/contacts?identifier=${encodeURIComponent(identifier)}`, undefined, true,
+      "GET", `/contacts/search?q=${encodeURIComponent(identifier)}`, undefined, true,
     ).then((r) => r.payload?.[0] ?? null);
   },
 
+  /** @deprecated Use findContactByIdentifier instead. Both use the same search endpoint now. */
   findContactByEmailForMigration(email: string) {
     return request<{ payload: ChatwootContactResponse[] }>(
-      "GET", `/contacts?q=${encodeURIComponent(email)}`, undefined, true,
+      "GET", `/contacts/search?q=${encodeURIComponent(email)}`, undefined, true,
     ).then((r) => r.payload?.[0] ?? null);
   },
 
