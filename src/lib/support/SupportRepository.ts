@@ -79,11 +79,12 @@ export const supportRepo = {
     description: string,
     category: string,
     attachments?: FormData,
+    subject?: string,
   ): Promise<{ id: number }> {
     const contactId = await resolveContact(identifier);
     const conversation = await chatwootRepo.createConversation(contactId, {
       [CW_ATTR.CATEGORY]: category,
-    });
+    }, subject);
 
     if (attachments) {
       attachments.set("content", description);

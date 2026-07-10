@@ -46,7 +46,7 @@ export const supportService = {
       uid: user.uid ?? "",
     });
 
-    const result = await supportRepo.createConversation(user.email, input.description, input.category, input.attachments);
+    const result = await supportRepo.createConversation(user.email, input.description, input.category, input.attachments, input.subject);
     return { id: result.id };
   },
 

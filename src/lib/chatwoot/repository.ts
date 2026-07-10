@@ -114,7 +114,7 @@ export const chatwootRepo = {
   },
 
   // ── Conversations ─────────────────────────────────────────────────────
-  createConversation(contactId: number, customAttributes: Record<string, string>) {
+  createConversation(contactId: number, customAttributes: Record<string, string>, subject?: string) {
     const sourceId = randomUUID();
     const body: Record<string, unknown> = {
       source_id: sourceId,
@@ -123,6 +123,9 @@ export const chatwootRepo = {
     };
     if (chatwootConfig.inboxId) {
       body.inbox_id = Number(chatwootConfig.inboxId);
+    }
+    if (subject) {
+      body.message = { content: subject };
     }
     return request<ChatwootConversationResponse>("POST", "/conversations", body);
   },
