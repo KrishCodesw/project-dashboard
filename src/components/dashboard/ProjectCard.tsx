@@ -1,12 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, memo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Calendar, Users } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 
 interface ProjectCardProps {
@@ -40,7 +40,10 @@ const statusColors: Record<string, string> = {
   ARCHIVED: "outline",
 };
 
-export function ProjectCard({ project, href }: ProjectCardProps) {
+export const ProjectCard = memo(function ProjectCard({
+  project,
+  href,
+}: ProjectCardProps) {
   const {
     title,
     domain,
@@ -49,19 +52,35 @@ export function ProjectCard({ project, href }: ProjectCardProps) {
     endDate,
     groupNo,
     isRblProject,
+    members: projectMembers,
+    tags: projectTags,
   } = project;
 
-  const members = (project.members ?? []).map((m: any) => ({
-    name: m.student?.name ?? m.name ?? "?",
-  }));
+  // Memoize members array to avoid recreating on each render
+  const members = useMemo(() => {
+    const raw = projectMembers ?? [];
+    return raw.map((m: any) => ({
+      name: m.student?.name ?? m.name ?? "?",
+    }));
+  }, [projectMembers]);
 
-  const tags = (project.tags ?? []).map((t: any) => ({
-    name: t.tag?.name ?? t.name ?? "",
-    color: t.tag?.color ?? t.color ?? "#6366f1",
-  }));
-  const circumference = 2 * Math.PI * 36;
-  const strokeDashoffset =
-    circumference - (completionPercentage / 100) * circumference;
+  // Memoize tags array since can vary in size and content
+  const tags = useMemo(() => {
+    const raw = projectTags ?? [];
+    return raw.map((t: any) => ({
+      name: t.tag?.name ?? t.name ?? "",
+      color: t.tag?.color ?? t.color ?? "#6366f1",
+    }));
+  }, [projectTags]);
+
+  // Memoize completion circle math (saves on re-renders with same percentage)
+  const { circumference, strokeDashoffset } = useMemo(() => {
+    const c = 2 * Math.PI * 36;
+    return {
+      circumference: c,
+      strokeDashoffset: c - (completionPercentage / 100) * c,
+    };
+  }, [completionPercentage]);
 
   return (
     <Link href={href}>
@@ -71,7 +90,10 @@ export function ProjectCard({ project, href }: ProjectCardProps) {
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <Badge variant={statusColors[status] as any} className="rounded-[2px] font-mono text-[9px] uppercase tracking-wider">
+              <Badge
+                variant={statusColors[status] as any}
+                className="rounded-[2px] font-mono text-[9px] uppercase tracking-wider"
+              >
                 {status.replace("_", " ")}
               </Badge>
               {isRblProject && (
@@ -179,4 +201,4 @@ export function ProjectCard({ project, href }: ProjectCardProps) {
       </motion.div>
     </Link>
   );
-}
+});
