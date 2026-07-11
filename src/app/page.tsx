@@ -1,13 +1,13 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { resolveUserFromHeaders } from "@/lib/resolve-user";
+import { resolveUserFromHeaders, getCoeAuthFromHeaders } from "@/lib/resolve-user";
+import { isPrincipal } from "@/lib/principal";
 
 export default async function HomePage() {
   const requestHeaders = await headers();
   const user = await resolveUserFromHeaders(requestHeaders);
 
   if (!user) {
-    redirect("http://tcetcercd.in/login");
     const forwardedProto = requestHeaders.get("x-forwarded-proto");
     const forwardedHost = requestHeaders.get("x-forwarded-host");
     const host = forwardedHost ?? requestHeaders.get("host");
@@ -21,6 +21,11 @@ export default async function HomePage() {
     redirect(
       `${authBaseUrl}/login?${new URLSearchParams({ callbackUrl }).toString()}`,
     );
+  }
+
+  const authUser = getCoeAuthFromHeaders(requestHeaders);
+  if (authUser?.email && isPrincipal(authUser.email)) {
+    redirect("/principal");
   }
 
   if (user.role === "ADMIN") redirect("/admin");
