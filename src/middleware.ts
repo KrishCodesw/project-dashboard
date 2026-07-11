@@ -25,12 +25,14 @@ export default async function middleware(req: NextRequest) {
 
   if (isDevAuthBypassEnabled) {
     const headers = new Headers(req.headers);
-    const allowedRoles = ["ADMIN", "TEACHER", "STUDENT"] as const;
+    const allowedRoles = ["ADMIN", "TEACHER", "STUDENT", "HOD", "PRINCIPAL"] as const;
     type Role = (typeof allowedRoles)[number];
     const coeRoleMap: Record<Role, "ADMIN" | "FACULTY" | "STUDENT"> = {
       ADMIN: "ADMIN",
       TEACHER: "FACULTY",
       STUDENT: "STUDENT",
+      HOD: "FACULTY",
+      PRINCIPAL: "ADMIN",
     };
 
     // Prefer explicit query param, otherwise fall back to persisted dev cookie
@@ -47,6 +49,8 @@ export default async function middleware(req: NextRequest) {
       ADMIN: process.env.DEV_AUTH_ADMIN_EMAIL,
       TEACHER: process.env.DEV_AUTH_TEACHER_EMAIL,
       STUDENT: process.env.DEV_AUTH_STUDENT_EMAIL,
+      HOD: process.env.DEV_AUTH_HOD_EMAIL,
+      PRINCIPAL: process.env.DEV_AUTH_PRINCIPAL_EMAIL,
     };
 
     const email = emailMap[role];
