@@ -84,6 +84,19 @@ export default async function PrincipalDashboardPage() {
         <DepartmentWorkloadSection data={deptWorkload} />
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ActivitySummary data={[
+          { label: "New Projects",       value: data.recentProjects,       period: "30 days" },
+          { label: "Recent Reviews",     value: data.recentReviews,        period: "30 days" },
+          { label: "Completed Tasks",    value: data.completedTasks,       period: "All time" },
+          { label: "Pending Publications",value: data.pendingPublications, period: "Awaiting" },
+        ]} />
+        <MilestoneGauge completed={data.completedMilestones} total={data.totalMilestones} />
+      </div>
+      
+      {/* Dept comparison table with Total Intake + drill-down */}
+      <DepartmentComparisonTable data={deptComparison} />
+
       {/* Chart rows */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <StatusBarChart data={data.statusBreakdown} />
@@ -109,18 +122,9 @@ export default async function PrincipalDashboardPage() {
         <GuideLoadChart data={data.guideLoad} />
         <MonthlyTrendChart data={data.projectTrend} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ActivitySummary data={[
-          { label: "New Projects",       value: data.recentProjects,       period: "30 days" },
-          { label: "Recent Reviews",     value: data.recentReviews,        period: "30 days" },
-          { label: "Completed Tasks",    value: data.completedTasks,       period: "All time" },
-          { label: "Pending Publications",value: data.pendingPublications, period: "Awaiting" },
-        ]} />
-        <MilestoneGauge completed={data.completedMilestones} total={data.totalMilestones} />
-      </div>
+      
 
-      {/* Dept comparison table with Total Intake + drill-down */}
-      <DepartmentComparisonTable data={deptComparison} />
+      
     </div>
   );
 }
