@@ -160,7 +160,8 @@ export async function inviteFacultyGuide(formData: FormData) {
   const user = await requireHOD();
   const dept = user.department ?? "";
   const email = formData.get("email") as string;
-  if (!email || !email.includes("@")) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email)) {
     throw new Error("Valid email is required");
   }
   const existing = await prisma.facultyGuideInvitation.findFirst({
@@ -373,6 +374,7 @@ export async function getDepartmentConfiguration() {
     divisionCount: config?.divisionCount ?? 0,
     studentCount: config?.studentCount ?? 0,
     projectGroupCount: config?.projectGroupCount ?? 0,
+    totalIntake: config?.totalIntake ?? 0,
     updatedAt: config?.updatedAt ?? null,
     academicYear: currentYear,
     department: dept,
@@ -386,11 +388,12 @@ export async function updateDepartmentConfiguration(formData: FormData) {
   const divisionCount = parseInt(formData.get("divisionCount") as string, 10) || 0;
   const studentCount = parseInt(formData.get("studentCount") as string, 10) || 0;
   const projectGroupCount = parseInt(formData.get("projectGroupCount") as string, 10) || 0;
+  const totalIntake = parseInt(formData.get("totalIntake") as string, 10) || 0;
   const currentYear = getCurrentAcademicYear();
   await prisma.departmentConfiguration.upsert({
     where: { academicYear_department: { academicYear: currentYear, department: dept } },
-    create: { academicYear: currentYear, department: dept, divisionCount, studentCount, projectGroupCount, configuredByUserId: user.id },
-    update: { divisionCount, studentCount, projectGroupCount, configuredByUserId: user.id },
+    create: { academicYear: currentYear, department: dept, divisionCount, studentCount, projectGroupCount, totalIntake, configuredByUserId: user.id },
+    update: { divisionCount, studentCount, projectGroupCount, totalIntake, configuredByUserId: user.id },
   });
   revalidatePath("/hod/configuration");
 }

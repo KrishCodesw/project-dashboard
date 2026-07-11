@@ -214,6 +214,7 @@ model User {
   guideInvitationsSent  FacultyGuideInvitation[]
   departmentGuides      DepartmentGuide[]              @relation("DepartmentGuideMember")
   departmentGuidesAdded DepartmentGuide[]              @relation("DepartmentGuideAddedBy")
+  workLogs              FacultyWorkLog[]
 
   @@index([uid])
   @@index([role, uid])
@@ -645,6 +646,7 @@ model DepartmentConfiguration {
   divisionCount     Int      @default(0)
   studentCount      Int      @default(0)
   projectGroupCount Int      @default(0)
+  totalIntake       Int      @default(0)
   isActive          Boolean  @default(true)
   configuredByUserId String?
   configuredBy      User?    @relation(fields: [configuredByUserId], references: [id], onDelete: SetNull)
@@ -685,4 +687,21 @@ model DepartmentGuide {
   @@unique([userId, department])
   @@index([department])
   @@map("department_guides")
+}
+
+model FacultyWorkLog {
+  id         String   @id @default(cuid())
+  facultyId  String
+  date       DateTime @db.Date
+  summary    String   @db.Text
+  department String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  faculty User @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@unique([facultyId, date])
+  @@index([date])
+  @@index([department, date])
+  @@map("faculty_work_logs")
 }

@@ -241,6 +241,8 @@ export function Sidebar({ role, userName, userIsHod = false, userIsPrincipal = f
                 { title: "HOD Dashboard", href: "/hod", icon: Building2 },
                 { title: "Faculty Guides", href: "/hod/guides", icon: FileText },
                 { title: "Department Config", href: "/hod/configuration", icon: SlidersHorizontal },
+                { title: "Send Notice",      href: "/hod/notices",       icon: Mail },
+                { title: "Major Project PDF",href: "/hod/major-project-pdf", icon: Upload },
               ].map((item) => {
                 const isActive =
                   pathname === item.href ||

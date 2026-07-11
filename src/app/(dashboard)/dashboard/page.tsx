@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-type Role = "ADMIN" | "TEACHER" | "STUDENT";
+type Role = "ADMIN" | "TEACHER" | "STUDENT" | "HOD";
 
 export default async function DashboardEntry({
   searchParams,
@@ -9,6 +9,11 @@ export default async function DashboardEntry({
 }) {
   const params = await searchParams;
   const roleParam = (params.role || "").toUpperCase();
+
+  // Handle HOD specifically
+  if (roleParam === "HOD") {
+    redirect("/hod?role=HOD");
+  }
 
   const role: Role =
     roleParam === "TEACHER" || roleParam === "STUDENT" || roleParam === "ADMIN"

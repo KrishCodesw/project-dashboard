@@ -6,6 +6,7 @@ type ConfigData = {
   divisionCount: number;
   studentCount: number;
   projectGroupCount: number;
+  totalIntake: number;
   updatedAt: Date | null;
 };
 
@@ -70,6 +71,19 @@ export function ConfigForm({ config }: { config: ConfigData }) {
           type="number"
           min="0"
           defaultValue={config.projectGroupCount}
+          className="w-full rounded-[2px] border border-border bg-background px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label htmlFor="totalIntake" className="block text-xs font-medium text-muted-foreground mb-1">
+          Total Intake
+        </label>
+        <input
+          id="totalIntake"
+          name="totalIntake"
+          type="number"
+          min="0"
+          defaultValue={config.totalIntake}
           className="w-full rounded-[2px] border border-border bg-background px-3 py-2 text-sm"
         />
       </div>
