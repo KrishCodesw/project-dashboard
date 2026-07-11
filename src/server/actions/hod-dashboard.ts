@@ -373,6 +373,7 @@ export async function getDepartmentConfiguration() {
     divisionCount: config?.divisionCount ?? 0,
     studentCount: config?.studentCount ?? 0,
     projectGroupCount: config?.projectGroupCount ?? 0,
+    totalIntake: config?.totalIntake ?? 0,
     updatedAt: config?.updatedAt ?? null,
     academicYear: currentYear,
     department: dept,
@@ -386,6 +387,7 @@ export async function updateDepartmentConfiguration(formData: FormData) {
   const divisionCount = parseInt(formData.get("divisionCount") as string, 10) || 0;
   const studentCount = parseInt(formData.get("studentCount") as string, 10) || 0;
   const projectGroupCount = parseInt(formData.get("projectGroupCount") as string, 10) || 0;
+  const totalIntake = parseInt(formData.get("totalIntake") as string, 10) || 0;
   const currentYear = getCurrentAcademicYear();
   await prisma.departmentConfiguration.upsert({
     where: { academicYear_department: { academicYear: currentYear, department: dept } },

@@ -292,3 +292,279 @@ export async function getPrincipalDashboardData() {
     };
   });
 }
+
+// ─────────────────────────────────────────────────────────────────
+// ACTIVITY FEED
+// ─────────────────────────────────────────────────────────────────
+export type WorkLogEntry = {
+  facultyId: string;
+  facultyName: string;
+  department: string | null;
+  summary: string;
+  submittedAt: Date;
+};
+
+export type ActivityFeedDay = {
+  date: string;
+  workLogs: WorkLogEntry[];
+  newProjects: number;
+  newFiles: number;
+  newReviews: number;
+  hasActivity: boolean;
+};
+
+export async function getDailyActivityFeed(dateStr?: string): Promise<ActivityFeedDay> {
+  await requirePrincipal();
+
+  const target = dateStr ? new Date(dateStr) : new Date();
+  target.setHours(0, 0, 0, 0);
+  const nextDay = new Date(target);
+  nextDay.setDate(target.getDate() + 1);
+  const isoDate = target.toISOString().slice(0, 10);
+
+  const [workLogs, newProjects, newFiles, newReviews] = await Promise.all([
+    prisma.facultyWorkLog.findMany({
+      where: { date: { gte: target, lt: nextDay } },
+      include: { faculty: { select: { name: true } } },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.project.count({ where: { createdAt: { gte: target, lt: nextDay } } }),
+    prisma.projectFile.count({ where: { uploadedAt: { gte: target, lt: nextDay } } }),
+    prisma.review.count({ where: { createdAt: { gte: target, lt: nextDay } } }),
+  ]);
+
+  const entries: WorkLogEntry[] = workLogs.map((l) => ({
+    facultyId:   l.facultyId,
+    facultyName: l.faculty.name,
+    department:  l.department,
+    summary:     l.summary,
+    submittedAt: l.createdAt,
+  }));
+
+  return {
+    date: isoDate,
+    workLogs: entries,
+    newProjects,
+    newFiles,
+    newReviews,
+    hasActivity: entries.length > 0 || newProjects > 0 || newFiles > 0 || newReviews > 0,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DEPARTMENT WORKLOAD
+// ─────────────────────────────────────────────────────────────────
+export type DeptWorkloadRow = {
+  department: string;
+  totalIntake: number;
+  projectCount: number;
+  activeProjects: number;
+  guideCount: number;
+  studentCount: number;
+  completionRate: number;
+};
+
+export async function getDepartmentWorkload(): Promise<DeptWorkloadRow[]> {
+  await requirePrincipal();
+
+  const { getCurrentAcademicYear } = await import('@/lib/academic-year');
+  const year = getCurrentAcademicYear();
+
+  const [configs, projectsByDept, guidesByDept] = await Promise.all([
+    prisma.departmentConfiguration.findMany({
+      where: { isActive: true, academicYear: year },
+      select: { department: true, studentCount: true, totalIntake: true },
+    }),
+    prisma.project.groupBy({ by: ['department', 'status'], _count: true }),
+    prisma.departmentGuide.groupBy({ by: ['department'], _count: true }),
+  ]);
+
+  return configs
+    .map((c) => {
+      const deptRows   = projectsByDept.filter((p) => p.department === c.department);
+      const total      = deptRows.reduce((s, p) => s + p._count, 0);
+      const active     = deptRows.find((p) => p.status === 'ACTIVE')?._count ?? 0;
+      const completed  = deptRows.find((p) => p.status === 'COMPLETED')?._count ?? 0;
+      const guides     = guidesByDept.find((g) => g.department === c.department)?._count ?? 0;
+
+      return {
+        department:    c.department,
+        totalIntake:   c.totalIntake ?? 0,
+        projectCount:  total,
+        activeProjects: active,
+        guideCount:    guides,
+        studentCount:  c.studentCount,
+        completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+      };
+    })
+    .sort((a, b) => b.projectCount - a.projectCount);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DEPARTMENT COMPARISON WITH INTAKE
+// ─────────────────────────────────────────────────────────────────
+export async function getDepartmentComparisonWithIntake() {
+  await requirePrincipal();
+
+  const { getCurrentAcademicYear } = await import('@/lib/academic-year');
+  const year = getCurrentAcademicYear();
+
+  const configs = await prisma.departmentConfiguration.findMany({
+    where: { isActive: true, academicYear: year },
+    select: { department: true, studentCount: true, totalIntake: true },
+  });
+
+  const departments = configs.map((c) => c.department);
+  if (!departments.length) return [];
+
+  const [projectStats, taskStats, guideStats] = await Promise.all([
+    prisma.project.findMany({
+      where: { department: { in: departments } },
+      select: { department: true, status: true },
+    }),
+    prisma.task.findMany({
+      where: { project: { department: { in: departments } } },
+      select: { status: true, project: { select: { department: true } } },
+    }),
+    prisma.departmentGuide.groupBy({ by: ['department'], _count: true }),
+  ]);
+
+  return configs.map((c) => {
+    const dp          = projectStats.filter((p) => p.department === c.department);
+    const dt          = taskStats.filter((t) => t.project.department === c.department);
+    const projectCount   = dp.length;
+    const activeCount    = dp.filter((p) => p.status === 'ACTIVE').length;
+    const completedCount = dp.filter((p) => p.status === 'COMPLETED').length;
+    const totalTasks     = dt.length;
+    const doneTasks      = dt.filter((t) => t.status === 'DONE').length;
+    const guideCount     = guideStats.find((g) => g.department === c.department)?._count ?? 0;
+
+    return {
+      department:          c.department,
+      projectCount,
+      guideCount,
+      studentCount:        c.studentCount,
+      totalIntake:         c.totalIntake ?? 0,
+      activeCount,
+      completedCount,
+      totalTasks,
+      doneTasks,
+      completionRate:     projectCount > 0 ? Math.round((completedCount / projectCount) * 100) : 0,
+      taskCompletionRate: totalTasks   > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0,
+    };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PRINCIPAL DEPARTMENT DRILL-DOWN
+// ─────────────────────────────────────────────────────────────────
+export type DeptDrilldownData = {
+  department:       string;
+  guideCount:       number;
+  studentCount:     number;
+  divisionCount:    number;
+  totalIntake:      number;
+  totalProjects:    number;
+  activeProjects:   number;
+  completedProjects:number;
+  totalTasks:       number;
+  completedTasks:   number;
+  totalReviews:     number;
+  statusBreakdown:  { name: string; value: number }[];
+  domainBreakdown:  { name: string; value: number }[];
+  guideLoad:        { name: string; projects: number }[];
+  projectTrend:     { month: string; count: number }[];
+  recentProjects: {
+    id:          string;
+    title:       string;
+    domain:      string;
+    status:      string;
+    memberCount: number;
+  }[];
+};
+
+export async function getDepartmentDrilldown(department: string): Promise<DeptDrilldownData> {
+  await requirePrincipal();
+  if (!department) throw new Error('Department is required.');
+
+  const { getCurrentAcademicYear } = await import('@/lib/academic-year');
+  const year = getCurrentAcademicYear();
+
+  const guideUsers = await prisma.departmentGuide.findMany({
+    where: { department },
+    select: { userId: true },
+  });
+  const guideIds    = guideUsers.map((g) => g.userId);
+  const guideFilter = guideIds.length
+    ? { teacherId: { in: guideIds } }
+    : { id: '__none__' };
+
+  const [
+    config, guideCount, statusCounts, domainCounts,
+    guidesWithLoad, totalTasks, completedTasks,
+    totalReviews, recentProjects, projectDates,
+  ] = await Promise.all([
+    prisma.departmentConfiguration.findFirst({
+      where: { department, academicYear: year, isActive: true },
+    }),
+    prisma.departmentGuide.count({ where: { department } }),
+    prisma.project.groupBy({ by: ['status'], where: guideFilter, _count: true }),
+    prisma.project.groupBy({
+      by: ['domain'], where: guideFilter, _count: true,
+      orderBy: { _count: { domain: 'desc' } }, take: 10,
+    }),
+    prisma.departmentGuide.findMany({
+      where: { department },
+      include: {
+        user: { select: { name: true, _count: { select: { managedProjects: true } } } },
+      },
+    }),
+    prisma.task.count({ where: { project: guideFilter } }),
+    prisma.task.count({ where: { project: guideFilter, status: 'DONE' } }),
+    prisma.review.count({ where: { project: guideFilter } }),
+    prisma.project.findMany({
+      where: guideFilter,
+      include: { _count: { select: { members: true } } },
+      orderBy: { updatedAt: 'desc' },
+      take: 12,
+    }),
+    prisma.project.findMany({
+      where: { ...guideFilter, createdAt: { gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) } },
+      select: { createdAt: true },
+    }),
+  ]);
+
+  const monthMap = new Map<string, number>();
+  for (const p of projectDates) {
+    const key = p.createdAt.getFullYear() + '-' + String(p.createdAt.getMonth() + 1).padStart(2, '0');
+    monthMap.set(key, (monthMap.get(key) ?? 0) + 1);
+  }
+  const projectTrend = Array.from(monthMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, count]) => ({ month, count }));
+
+  const totalProjects    = statusCounts.reduce((s, d) => s + d._count, 0);
+  const activeProjects   = statusCounts.find((s) => s.status === 'ACTIVE')?._count    ?? 0;
+  const completedProjects= statusCounts.find((s) => s.status === 'COMPLETED')?._count ?? 0;
+
+  return {
+    department,
+    guideCount,
+    studentCount:      config?.studentCount  ?? 0,
+    divisionCount:     config?.divisionCount ?? 0,
+    totalIntake:       config?.totalIntake   ?? 0,
+    totalProjects,
+    activeProjects,
+    completedProjects,
+    totalTasks,
+    completedTasks,
+    totalReviews,
+    statusBreakdown: statusCounts.map((s) => ({ name: s.status, value: s._count })),
+    domainBreakdown: domainCounts.filter((d) => d.domain).map((d) => ({ name: d.domain!, value: d._count })),
+    guideLoad:       guidesWithLoad.map((g) => ({ name: g.user.name, projects: g.user._count.managedProjects })),
+    projectTrend,
+    recentProjects:  recentProjects.map((p) => ({
+      id: p.id, title: p.title, domain: p.domain, status: p.status, memberCount: p._count.members,
+    })),
+  };
+}

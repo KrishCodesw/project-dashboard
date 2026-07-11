@@ -6,6 +6,8 @@ type ConfigData = {
   divisionCount: number;
   studentCount: number;
   projectGroupCount: number;
+  totalIntake: number;
+  totalIntake: number;
   updatedAt: Date | null;
 };
 
