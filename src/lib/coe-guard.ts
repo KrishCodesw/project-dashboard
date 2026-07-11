@@ -1,8 +1,12 @@
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { resolveUserFromHeaders, getCoeAuthFromHeaders } from "@/lib/resolve-user";
 import { mapCoERoleToDashboard } from "@/lib/coe-auth";
 import { prisma } from "@/lib/prisma";
 import { isPrincipal } from "@/lib/principal";
+
+/** Whether the dev auth bypass is active — checked server-side so it's never lost. */
+const isDevBypass = (): boolean =>
+  process.env.NODE_ENV === "development" || process.env.DEV_AUTH_BYPASS === "true";
 
 export type DashboardRole = "ADMIN" | "TEACHER" | "STUDENT";
 
@@ -36,9 +40,9 @@ export async function requireHOD() {
   const mapped = mapCoERoleToDashboard(authUser.role);
   if (mapped !== "TEACHER") throw new Error("Unauthorized");
 
-  // Dev bypass: x-coe-ishod is injected by middleware when DEV_AUTH_BYPASS is active
-  // and stripped in the real auth path to prevent spoofing
-  if (requestHeaders.get("x-coe-ishod") === "true") {
+  // Dev bypass: skip the DB isHod check. The middleware has already vetted the role,
+  // and the env-var check is server-side (never lost across redirects).
+  if (isDevBypass()) {
     const user = await resolveUserFromHeaders(requestHeaders);
     if (!user) throw new Error("Unauthorized");
     return user;
@@ -67,9 +71,9 @@ export async function requirePrincipal() {
 
   if (authUser.status !== "ACTIVE") throw new Error("Unauthorized");
 
-  // Dev bypass: x-coe-isprincipal is injected by middleware when DEV_AUTH_BYPASS is active
-  // and stripped in the real auth path to prevent spoofing
-  if (requestHeaders.get("x-coe-isprincipal") !== "true" && !isPrincipal(authUser.email)) {
+  // Dev bypass: skip the PRINCIPAL_EMAILS check. The middleware has already vetted the
+  // role, and the env-var check is server-side (never lost across redirects).
+  if (!isDevBypass() && !isPrincipal(authUser.email)) {
     throw new Error("Unauthorized");
   }
 
