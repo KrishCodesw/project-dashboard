@@ -104,7 +104,8 @@ export async function upsertDashboardUser(input: SyncUserInput): Promise<Resolve
         id: existing.id,
         name: input.name || existing.name,
         email: existing.email,
-        role: existing.role,
+        // ponytail: existing.role was stale (pre-update); use mappedRole when role changed
+        role: (existing.role !== mappedRole ? mappedRole : existing.role),
         isActive: input.status ? input.status === "ACTIVE" : existing.isActive,
         avatarUrl: existing.avatarUrl,
         department: existing.department,

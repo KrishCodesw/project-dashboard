@@ -6,8 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { isPrincipal } from "@/lib/principal";
 import { DashboardShell } from "./DashboardShell";
 
-const isDevBypass = (): boolean =>
-  process.env.NODE_ENV === "development" || process.env.DEV_AUTH_BYPASS === "true";
+const isDevBypass = (): boolean => {
+  const result = process.env.NODE_ENV === "development" || process.env.DEV_AUTH_BYPASS === "true";
+  console.log("[DEV AUTH] Layout isDevBypass: NODE_ENV:", process.env.NODE_ENV, "DEV_AUTH_BYPASS:", process.env.DEV_AUTH_BYPASS, "=>", result);
+  return result;
+};
 
 export default async function DashboardLayout({
   children,
