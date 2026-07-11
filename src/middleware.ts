@@ -76,6 +76,8 @@ export default async function middleware(req: NextRequest) {
         role,
         coeRole: coeRoleMap[role],
         pathname: req.nextUrl.pathname,
+        hasIshod: role === "HOD" ? "set" : "not_set",
+        hasIsprincipal: role === "PRINCIPAL" ? "set" : "not_set",
       });
     }
 

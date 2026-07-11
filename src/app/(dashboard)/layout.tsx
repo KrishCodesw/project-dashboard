@@ -19,11 +19,13 @@ export default async function DashboardLayout({
 
   const isSupportEnabled = process.env.SUPPORT_ENABLED === "true";
   if (!user) {
+    console.log("[DEV AUTH] Root layout: user null, redirecting to login. x-coe-email:", requestHeaders.get("x-coe-email"), "x-coe-role:", requestHeaders.get("x-coe-role"));
     redirect("https://tcetcercd.in/login?reason=session_expired");
   }
 
   const cookieStore = await cookies();
   const devAuthRole = cookieStore.get("dev_auth_role")?.value;
+  console.log("[DEV AUTH] Root layout: userRole:", user.role, "devAuthRole:", devAuthRole, "x-coe-ishod:", requestHeaders.get("x-coe-ishod"), "isDevBypass:", isDevBypass());
 
   let isHod = requestHeaders.get("x-coe-ishod") === "true";
   if (!isHod && isDevBypass() && user.role === "TEACHER") {
