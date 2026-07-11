@@ -63,6 +63,13 @@ export default async function middleware(req: NextRequest) {
     headers.set("x-coe-role", coeRoleMap[role]);
     headers.set("x-coe-status", "ACTIVE");
 
+    if (role === "HOD") {
+      headers.set("x-coe-ishod", "true");
+    }
+    if (role === "PRINCIPAL") {
+      headers.set("x-coe-isprincipal", "true");
+    }
+
     if (process.env.NODE_ENV === "development") {
       console.log("[DEV AUTH] Injected headers:", {
         email,
@@ -101,6 +108,10 @@ export default async function middleware(req: NextRequest) {
   requestHeaders.set("x-coe-name", payload.name || "");
   requestHeaders.set("x-coe-role", payload.role);
   requestHeaders.set("x-coe-status", payload.status);
+
+  // Strip dev-bypass-only headers in the real auth path so clients can't spoof them
+  requestHeaders.delete("x-coe-ishod");
+  requestHeaders.delete("x-coe-isprincipal");
 
   return NextResponse.next({
     request: {
