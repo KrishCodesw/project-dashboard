@@ -1,4 +1,7 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { getCoeAuthFromHeaders } from "@/lib/resolve-user";
+import { isPrincipal } from "@/lib/principal";
 
 type Role = "ADMIN" | "TEACHER" | "STUDENT" | "HOD";
 
@@ -9,6 +12,12 @@ export default async function DashboardEntry({
 }) {
   const params = await searchParams;
   const roleParam = (params.role || "").toUpperCase();
+
+  const requestHeaders = await headers();
+  const authUser = getCoeAuthFromHeaders(requestHeaders);
+  if (authUser?.email && isPrincipal(authUser.email)) {
+    redirect("/principal");
+  }
 
   // Handle HOD specifically
   if (roleParam === "HOD") {

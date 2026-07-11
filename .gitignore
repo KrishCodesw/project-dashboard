@@ -50,6 +50,9 @@ prisma/migrations/migration_lock.toml
 coverage/
 .nyc_output/
 
+# Wiki session state (ephemeral)
+.wiki/.sessions/
+
 # Misc
 *.tgz
 *.tar.gz
