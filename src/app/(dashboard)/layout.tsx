@@ -19,8 +19,8 @@ export default async function DashboardLayout({
     redirect("https://tcetcercd.in/login?reason=session_expired");
   }
 
-  let isHod = false;
-  if (user.role === "TEACHER") {
+  let isHod = requestHeaders.get("x-coe-ishod") === "true";
+  if (!isHod && user.role === "TEACHER") {
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
       select: { isHod: true },
@@ -28,7 +28,7 @@ export default async function DashboardLayout({
     isHod = dbUser?.isHod ?? false;
   }
 
-  const isUserPrincipal = isPrincipal(user.email);
+  const isUserPrincipal = requestHeaders.get("x-coe-isprincipal") === "true" || isPrincipal(user.email);
 
   return (
     <DashboardShell

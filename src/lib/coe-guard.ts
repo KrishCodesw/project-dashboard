@@ -36,6 +36,14 @@ export async function requireHOD() {
   const mapped = mapCoERoleToDashboard(authUser.role);
   if (mapped !== "TEACHER") throw new Error("Unauthorized");
 
+  // Dev bypass: x-coe-ishod is injected by middleware when DEV_AUTH_BYPASS is active
+  // and stripped in the real auth path to prevent spoofing
+  if (requestHeaders.get("x-coe-ishod") === "true") {
+    const user = await resolveUserFromHeaders(requestHeaders);
+    if (!user) throw new Error("Unauthorized");
+    return user;
+  }
+
   const user = await prisma.user.findUnique({
     where: { email: authUser.email.toLowerCase().trim() },
     select: {
@@ -59,7 +67,11 @@ export async function requirePrincipal() {
 
   if (authUser.status !== "ACTIVE") throw new Error("Unauthorized");
 
-  if (!isPrincipal(authUser.email)) throw new Error("Unauthorized");
+  // Dev bypass: x-coe-isprincipal is injected by middleware when DEV_AUTH_BYPASS is active
+  // and stripped in the real auth path to prevent spoofing
+  if (requestHeaders.get("x-coe-isprincipal") !== "true" && !isPrincipal(authUser.email)) {
+    throw new Error("Unauthorized");
+  }
 
   const user = await resolveUserFromHeaders(requestHeaders);
   if (!user) throw new Error("Unauthorized");
