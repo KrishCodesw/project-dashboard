@@ -13,7 +13,7 @@ export function ActivityFeedSection({ initialFeed, fetchFeed }: Props) {
   const [feed, setFeed] = useState<ActivityFeedDay>(initialFeed);
   const [isPending, startTransition] = useTransition();
 
-  const isToday = feed.date === new Date().toISOString().slice(0, 10);
+  const isToday = feed.date === new Date().toLocaleDateString('en-CA');
 
   function changeDate(offset: number) {
     const d = new Date(feed.date + "T00:00:00");

@@ -4,6 +4,8 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { BUCKET, buildS3Key, s3Client } from "@/lib/s3";
 import { prisma } from "@/lib/prisma";
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
@@ -22,6 +24,14 @@ export async function POST(req: NextRequest) {
 
     if (!file || !projectId) {
       return NextResponse.json({ error: "Missing file or projectId" }, { status: 400 });
+    }
+
+    // Server-side file size validation
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `File exceeds 50 MB limit` },
+        { status: 413 }
+      );
     }
 
     const mimeType = file.type || "application/octet-stream";

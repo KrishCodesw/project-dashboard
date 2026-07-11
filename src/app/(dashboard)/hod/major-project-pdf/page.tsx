@@ -29,7 +29,7 @@ export default function MajorProjectPDFPage() {
     fd.append("projectId", "__major-project-signed__");
 
     try {
-      const timer = setInterval(() => setProgress((p) => Math.min(p + 12, 85)), 300);
+      const timer = setInterval(() => setProgress((p) => Math.min(p + 10, 95)), 200);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       clearInterval(timer); setProgress(100);
       if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error ?? `Upload failed (${res.status})`); }
