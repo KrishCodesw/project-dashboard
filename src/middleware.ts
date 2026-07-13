@@ -23,8 +23,6 @@ export default async function middleware(req: NextRequest) {
     process.env.NODE_ENV === "development" ||
     process.env.DEV_AUTH_BYPASS === "true";
 
-  console.log("[DEV AUTH] Middleware: NODE_ENV:", process.env.NODE_ENV, "DEV_AUTH_BYPASS:", process.env.DEV_AUTH_BYPASS, "bypassActive:", isDevAuthBypassEnabled);
-
   if (isDevAuthBypassEnabled) {
     const headers = new Headers(req.headers);
     const allowedRoles = ["ADMIN", "TEACHER", "STUDENT", "HOD", "PRINCIPAL"] as const;
@@ -46,7 +44,6 @@ export default async function middleware(req: NextRequest) {
     } else if (cookieRole && allowedRoles.includes(cookieRole as Role)) {
       role = cookieRole as Role;
     }
-    console.log("[DEV AUTH] Middleware role detection: roleParam:", roleParam, "cookieRole:", cookieRole, "finalRole:", role);
 
     const emailMap: Record<Role, string | undefined> = {
       ADMIN: process.env.DEV_AUTH_ADMIN_EMAIL,
@@ -71,17 +68,6 @@ export default async function middleware(req: NextRequest) {
     }
     if (role === "PRINCIPAL") {
       headers.set("x-coe-isprincipal", "true");
-    }
-
-    if (process.env.NODE_ENV === "development") {
-      console.log("[DEV AUTH] Injected headers:", {
-        email,
-        role,
-        coeRole: coeRoleMap[role],
-        pathname: req.nextUrl.pathname,
-        hasIshod: role === "HOD" ? "set" : "not_set",
-        hasIsprincipal: role === "PRINCIPAL" ? "set" : "not_set",
-      });
     }
 
     // Persist the chosen role into a cookie for all dev requests

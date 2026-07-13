@@ -35,22 +35,14 @@ export async function requireRole(role: DashboardRole | DashboardRole[]) {
 export async function requireHOD() {
   const requestHeaders = await headers();
   const authUser = getCoeAuthFromHeaders(requestHeaders);
-  if (!authUser) {
-    console.log("[DEV AUTH] requireHOD: NO AUTH USER (headers missing) - x-coe-email:", requestHeaders.get("x-coe-email"), "x-coe-role:", requestHeaders.get("x-coe-role"));
-    throw new Error("Unauthorized");
-  }
+  if (!authUser) throw new Error("Unauthorized");
 
   const mapped = mapCoERoleToDashboard(authUser.role);
   if (mapped !== "TEACHER") throw new Error("Unauthorized");
 
   if (isDevBypass()) {
-    console.log("[DEV AUTH] requireHOD: bypass active, resolving user from headers");
     const user = await resolveUserFromHeaders(requestHeaders);
-    if (!user) {
-      console.log("[DEV AUTH] requireHOD: resolveUserFromHeaders returned null");
-      throw new Error("Unauthorized");
-    }
-    console.log("[DEV AUTH] requireHOD: success, user role:", user.role, "dept:", user.department);
+    if (!user) throw new Error("Unauthorized");
     return user;
   }
 
