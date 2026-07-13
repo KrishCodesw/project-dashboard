@@ -26,6 +26,7 @@ import {
   FileText,
   SlidersHorizontal,
   LifeBuoy,
+  ExternalLink,
 } from "lucide-react";
 import {
   Tooltip,
@@ -391,6 +392,35 @@ export function Sidebar({ role, userName, userIsHod = false, userIsPrincipal = f
               </p>
             </div>
           )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a
+                href="https://tcetcercd.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm font-sans font-medium text-muted-foreground transition-all duration-200 ease-[0.23,1,0.32,1] hover:scale-[0.98] active:scale-95 hover:bg-muted hover:text-foreground",
+                  sidebarCollapsed && "justify-center px-2",
+                )}
+              >
+                <ExternalLink className="h-4 w-4 shrink-0" />
+                {!sidebarCollapsed && (
+                  <span className="font-mono text-[10px] uppercase tracking-wider">
+                    CoE Portal
+                  </span>
+                )}
+              </a>
+            </TooltipTrigger>
+            {sidebarCollapsed && (
+              <TooltipContent
+                side="right"
+                sideOffset={10}
+                className="font-mono text-[10px] uppercase tracking-wider rounded-[2px]"
+              >
+                CoE Portal
+              </TooltipContent>
+            )}
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
