@@ -320,7 +320,8 @@ export async function getDailyActivityFeed(dateStr?: string): Promise<ActivityFe
   target.setHours(0, 0, 0, 0);
   const nextDay = new Date(target);
   nextDay.setDate(target.getDate() + 1);
-  const isoDate = target.toISOString().slice(0, 10);
+  // local-timezone date string (toISOString() shifts IST→UTC rolling back a day)
+  const isoDate = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`;
 
   const [workLogs, newProjects, newFiles, newReviews] = await Promise.all([
     prisma.facultyWorkLog.findMany({
