@@ -95,18 +95,46 @@ export async function sendEmail(options: {
   }
 }
 
+export const brandHeader = `
+  <div style="background:#002155;padding:16px 24px;text-align:center;">
+    <h1 style="margin:0;color:#ffffff;font-family:'Helvetica Neue',Arial,sans-serif;font-size:20px;letter-spacing:2px;">TCET CENTRE OF EXCELLENCE</h1>
+    <div style="height:4px;background:#F7941D;margin-top:8px;"></div>
+  </div>
+`;
+
+export const brandFooter = `
+  <div style="background:#f5f4f0;padding:16px 24px;text-align:center;font-size:11px;color:#747782;font-family:Arial,sans-serif;">
+    <p style="margin:0;">Thakur College of Engineering &amp; Technology, Kandivali (E), Mumbai - 400101</p>
+    <p style="margin:4px 0 0;">&copy; 2026 TCET Centre of Excellence. All Rights Reserved.</p>
+  </div>
+`;
+
+export function wrapEmailBody(innerHtml: string): string {
+  return `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background:#faf9f5;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:600px;margin:24px auto;border:1px solid #c4c6d3;overflow:hidden;">
+    ${brandHeader}
+    <div style="padding:24px;background:#ffffff;">${innerHtml}</div>
+    ${brandFooter}
+  </div>
+</body></html>`;
+}
+
 export async function sendRegistrationEmail(userEmail: string, userName: string) {
   return sendEmail({
     to: userEmail,
     subject: "Welcome to Academic Project Dashboard",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #111827;">
-        <h2 style="color: #4f46e5; margin-bottom: 12px;">Registration successful</h2>
-        <p style="margin: 0 0 12px;">Hi ${userName},</p>
-        <p style="margin: 0 0 12px;">Your account has been created successfully. You can now sign in and start using the dashboard.</p>
-        <p style="margin: 0; color: #6b7280; font-size: 13px;">If you did not register for this account, please contact your administrator.</p>
+    html: wrapEmailBody(`
+      <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">Registration Successful</h2>
+      <p style="color:#434651;font-size:14px;margin:0 0 4px;">Dear <strong>${userName}</strong>,</p>
+      <p style="color:#434651;font-size:14px;margin:12px 0;">Your account has been created successfully. You can now sign in and start using the Academic Project Dashboard.</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/student/projects" style="background:#002155;color:#ffffff;padding:12px 32px;text-decoration:none;font-weight:bold;font-size:14px;letter-spacing:1px;display:inline-block;">GO TO DASHBOARD</a>
       </div>
-    `,
+      <p style="color:#747782;font-size:12px;margin:0;">If you did not register for this account, please contact your administrator.</p>
+    `),
   });
 }
 
@@ -119,17 +147,15 @@ export async function sendReviewScheduledEmail(
   return sendEmail({
     to: studentEmail,
     subject: `Review Scheduled: ${projectTitle}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #6366f1;">Review Scheduled</h2>
-        <p>A <strong>${reviewType.replace("_", " ")}</strong> review has been scheduled for your project:</p>
-        <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin: 16px 0;">
-          <p style="margin: 0;"><strong>Project:</strong> ${projectTitle}</p>
-          <p style="margin: 8px 0 0;"><strong>Date:</strong> ${reviewDate.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
-        </div>
-        <p>Please ensure your work is up to date before the review.</p>
+    html: wrapEmailBody(`
+      <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">Review Scheduled</h2>
+      <p style="color:#434651;font-size:14px;margin:0 0 4px;">A <strong>${reviewType.replace("_", " ")}</strong> review has been scheduled for your project:</p>
+      <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:16px;margin:16px 0;">
+        <p style="margin:0 0 6px;color:#002155;"><strong>Project:</strong> ${projectTitle}</p>
+        <p style="margin:0;color:#434651;"><strong>Date:</strong> ${reviewDate.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
       </div>
-    `,
+      <p style="color:#434651;font-size:14px;margin:0;">Please ensure your work is up to date before the review.</p>
+    `),
   });
 }
 
@@ -142,17 +168,15 @@ export async function sendFeedbackEmail(
   return sendEmail({
     to: studentEmail,
     subject: `Review Feedback: ${projectTitle}`,
-    html: `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #6366f1;">Review Feedback Received</h2>
-        <p>Your project has received a review:</p>
-        <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin: 16px 0;">
-          <p style="margin: 0;"><strong>Project:</strong> ${projectTitle}</p>
-          <p style="margin: 8px 0 0;"><strong>Score:</strong> ${score}/10</p>
-          <p style="margin: 8px 0 0;"><strong>Feedback:</strong> ${feedback}</p>
-        </div>
-        <p>Log in to your dashboard to view the complete review details.</p>
+    html: wrapEmailBody(`
+      <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">Review Feedback Received</h2>
+      <p style="color:#434651;font-size:14px;margin:0 0 4px;">Your project has received a review:</p>
+      <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:16px;margin:16px 0;">
+        <p style="margin:0 0 6px;color:#002155;"><strong>Project:</strong> ${projectTitle}</p>
+        <p style="margin:0 0 6px;color:#434651;"><strong>Score:</strong> ${score}/10</p>
+        <p style="margin:0;color:#434651;"><strong>Feedback:</strong> ${feedback}</p>
       </div>
-    `,
+      <p style="color:#434651;font-size:14px;margin:0;">Log in to your dashboard to view the complete review details.</p>
+    `),
   });
 }

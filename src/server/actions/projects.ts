@@ -11,6 +11,7 @@ import { createBulkNotifications } from "@/lib/notifications";
 import { updateProjectCompletion } from "@/lib/completion";
 import { buildPagination } from "@/lib/pagination";
 import type { PaginatedResult } from "@/lib/pagination";
+import { wrapEmailBody } from "@/lib/email";
 
 const createProjectSchema = z.object({
   title: z.string().min(3),
@@ -306,20 +307,32 @@ function buildCoeLoginUrl(): string {
   return `${baseUrl}/login?callbackUrl=${encodeURIComponent(`${dashboardUrl}/student/projects`)}`;
 }
 
+function buildShowcaseUrl(): string {
+  const dashboardUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  return `${dashboardUrl}/showcase`;
+}
+
 function buildAssignmentEmailBody(projectTitle: string, loginOrRegisterUrl: string, invitedByName?: string): string {
   const invitedByLine = invitedByName
-    ? `<p style="margin: 0 0 12px;">Invited by <strong>${invitedByName}</strong>.</p>`
+    ? `<p style="color:#434651;font-size:14px;margin:0 0 4px;">Invited by <strong style="color:#002155;">${invitedByName}</strong>.</p>`
     : "";
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #111827;">
-      <h2 style="color: #2563eb; margin-bottom: 12px;">Project Assignment Notification</h2>
-      <p style="margin: 0 0 12px;">You have been assigned to <strong>${projectTitle}</strong>.</p>
-      ${invitedByLine}
-      <p style="margin: 0 0 12px;">Please log in to <strong>tcetcercd.in</strong> to join your project and get started.</p>
-      <p style="margin: 0 0 12px;"><a href="${loginOrRegisterUrl}" style="color: #2563eb;">Log in to accept assignment</a></p>
-      <p style="margin: 0; color: #6b7280; font-size: 13px;">If this assignment is unexpected, contact your administrator.</p>
+  const innerHtml = `
+    <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">Project Assignment Notification</h2>
+    <p style="color:#434651;font-size:14px;margin:0 0 12px;">You have been assigned to the project:</p>
+    <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:16px;margin:16px 0;">
+      <p style="margin:0;color:#002155;font-size:16px;font-weight:bold;">${projectTitle}</p>
     </div>
-  `;
+    ${invitedByLine}
+    <p style="color:#434651;font-size:14px;margin:16px 0 4px;">To accept this assignment and start collaborating, log in to your dashboard:</p>
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${loginOrRegisterUrl}" style="background:#002155;color:#ffffff;padding:12px 32px;text-decoration:none;font-weight:bold;font-size:14px;letter-spacing:1px;display:inline-block;">LOG IN TO ACCEPT</a>
+    </div>
+    <p style="color:#434651;font-size:14px;margin:16px 0 4px;">You can also browse published projects on the Showcase Portal:</p>
+    <div style="text-align:center;margin:16px 0 24px;">
+      <a href="${buildShowcaseUrl()}" style="background:#ffffff;color:#002155;padding:10px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;border:2px solid #002155;display:inline-block;">VISIT SHOWCASE PORTAL</a>
+    </div>
+    <p style="color:#747782;font-size:12px;margin:0;">If this assignment is unexpected, please contact your administrator or the CoE office.</p>`;
+  return wrapEmailBody(innerHtml);
 }
 
 export async function adminUploadProjectAssignments(data: z.infer<typeof adminUploadAssignmentsSchema>) {

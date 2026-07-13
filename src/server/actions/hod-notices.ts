@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireHOD } from "@/lib/coe-guard";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, wrapEmailBody } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 
 export type SendNoticeResult = {
@@ -55,16 +55,13 @@ export async function sendNoticeToStudents(
       await sendEmail({
         to: student.email,
         subject: `[${dept}] ${subject}`,
-        html: `
-          <div style="font-family:sans-serif;max-width:620px;margin:0 auto">
-            <h2 style="color:#1a1a1a;margin-bottom:8px">${subject}</h2>
-            <hr style="border:none;border-top:1px solid #e5e7eb;margin-bottom:16px"/>
-            <div style="color:#374151;line-height:1.7;white-space:pre-wrap">${body}</div>
-            <hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px"/>
-            <p style="color:#9ca3af;font-size:12px;margin-top:8px">
-              Sent by HOD <strong>${hod.name}</strong> · ${dept} Department
-            </p>
-          </div>`,
+        html: wrapEmailBody(`
+          <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">${subject}</h2>
+          <div style="color:#434651;font-size:14px;line-height:1.7;white-space:pre-wrap;margin:16px 0;">${body}</div>
+          <hr style="border:none;border-top:1px solid #c4c6d3;margin:16px 0;"/>
+          <p style="color:#747782;font-size:12px;margin:0;">
+            Sent by HOD <strong>${hod.name}</strong> · ${dept} Department
+          </p>`,
       });
       sent++;
     } catch { failed++; }

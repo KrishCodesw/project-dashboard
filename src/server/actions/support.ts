@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCoeUser } from "@/lib/coe-guard";
 import { supportService } from "@/lib/support/SupportService";
 import { createNotification, createBulkNotifications } from "@/lib/notifications";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, wrapEmailBody } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 // ─── Schemas ───────────────────────────────────────────────────────────────
@@ -101,16 +101,18 @@ export async function createTicket(formData: FormData) {
       sendEmail({
         to: admin.email,
         subject: `[Support] ${user.name} reported: ${parsed.subject}`,
-        html: `
-          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-            <h2>New Support Ticket</h2>
-            <p><strong>From:</strong> ${user.name} (${user.email})</p>
-            <p><strong>Subject:</strong> ${parsed.subject}</p>
-            <p><strong>Description:</strong></p>
-            <p>${parsed.description}</p>
-            <p><a href="${ticketLink}">View ticket in dashboard</a></p>
+        html: wrapEmailBody(`
+          <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">New Support Ticket</h2>
+          <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:16px;margin:16px 0;">
+            <p style="margin:0 0 6px;color:#434651;"><strong>From:</strong> ${user.name} (${user.email})</p>
+            <p style="margin:0 0 6px;color:#434651;"><strong>Subject:</strong> ${parsed.subject}</p>
+            <p style="margin:0;color:#434651;"><strong>Description:</strong></p>
+            <p style="margin:4px 0 0;color:#002155;">${parsed.description}</p>
           </div>
-        `,
+          <div style="text-align:center;margin:20px 0;">
+            <a href="${ticketLink}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">VIEW TICKET</a>
+          </div>
+        `),
       }).catch(() => {});
     }
   }
@@ -158,16 +160,18 @@ export async function replyToTicket(chatwootId: number, formData: FormData) {
       sendEmail({
         to: platformUser.email,
         subject: `[Support] ${user.name} replied on "${ticket.subject}"`,
-        html: `
-          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-            <h2>New Reply on Your Ticket</h2>
-            <p><strong>From:</strong> ${user.name}</p>
-            <p><strong>Ticket:</strong> ${ticket.subject}</p>
-            <p><strong>Reply:</strong></p>
-            <p>${parsed.content}</p>
-            <p><a href="${ticketLink}">View in dashboard</a></p>
+        html: wrapEmailBody(`
+          <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">New Reply on Your Ticket</h2>
+          <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:16px;margin:16px 0;">
+            <p style="margin:0 0 6px;color:#434651;"><strong>From:</strong> ${user.name}</p>
+            <p style="margin:0 0 6px;color:#434651;"><strong>Ticket:</strong> ${ticket.subject}</p>
+            <p style="margin:0 0 6px;color:#434651;"><strong>Reply:</strong></p>
+            <p style="margin:0;color:#002155;">${parsed.content}</p>
           </div>
-        `,
+          <div style="text-align:center;margin:20px 0;">
+            <a href="${ticketLink}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">VIEW TICKET</a>
+          </div>
+        `),
       }).catch(() => {});
     }
   }
