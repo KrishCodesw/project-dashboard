@@ -11,6 +11,7 @@ import {
   requestProjectEdit,
   approveProjectEdit,
   rejectProjectEdit,
+  requestProjectActivation,
   getPendingMembers,
 } from "@/server/actions/projects";
 
@@ -138,6 +139,18 @@ export function useRejectProjectEdit() {
 
   return useMutation({
     mutationFn: (projectId: string) => rejectProjectEdit(projectId),
+    onSuccess: (_, projectId) => {
+      queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "projects", "manage"] });
+    },
+  });
+}
+
+export function useRequestProjectActivation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (projectId: string) => requestProjectActivation(projectId),
     onSuccess: (_, projectId) => {
       queryClient.invalidateQueries({ queryKey: ["project", projectId] });
       queryClient.invalidateQueries({ queryKey: ["admin", "projects", "manage"] });

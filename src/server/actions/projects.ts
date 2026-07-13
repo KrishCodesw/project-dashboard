@@ -111,6 +111,58 @@ export async function rejectProjectEdit(projectId: string) {
   return { ok: true };
 }
 
+export async function requestProjectActivation(projectId: string) {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project) throw new Error("Project not found");
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { hasPendingActivation: true },
+  });
+
+  revalidatePath(`/teacher/projects/${projectId}`);
+  revalidatePath("/admin/projects");
+  revalidatePath("/teacher/projects");
+  return { ok: true };
+}
+
+export async function approveProjectActivation(projectId: string) {
+  await requireAdminSession();
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || !project.hasPendingActivation) {
+    throw new Error("No pending activation request found for this project");
+  }
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      status: "ACTIVE",
+      hasPendingActivation: false,
+    },
+  });
+
+  revalidatePath("/admin/projects");
+  revalidatePath(`/teacher/projects/${projectId}`);
+  revalidatePath(`/student/projects/${projectId}`);
+  revalidatePath("/teacher/projects");
+  return { ok: true };
+}
+
+export async function rejectProjectActivation(projectId: string) {
+  await requireAdminSession();
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { hasPendingActivation: false },
+  });
+
+  revalidatePath("/admin/projects");
+  revalidatePath(`/teacher/projects/${projectId}`);
+  revalidatePath("/teacher/projects");
+  return { ok: true };
+}
+
 const adminUpdateProjectSchema = z.object({
   projectId: z.string().min(1),
   title: z.string().min(3),

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { useProject, useRequestProjectEdit } from "@/hooks/useProjects";
+import { useProject, useRequestProjectEdit, useRequestProjectActivation } from "@/hooks/useProjects";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,6 +36,7 @@ import {
   Loader2,
   Clock,
   AlertCircle,
+  Rocket,
 } from "lucide-react";
 import { toast } from "sonner";
 import { OverviewTab } from "./_tabs/OverviewTab";
@@ -158,6 +159,7 @@ export default function ProjectDetailPage() {
 
   const { data: project, isLoading } = useProject(projectId);
   const { mutateAsync: submitEditRequest } = useRequestProjectEdit();
+  const { mutateAsync: submitActivationRequest } = useRequestProjectActivation();
 
   const [activeTab, setActiveTab] = useState("overview");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -238,6 +240,18 @@ export default function ProjectDetailPage() {
     }
   }
 
+  async function handleRequestActivation() {
+    setIsSubmitting(true);
+    try {
+      await submitActivationRequest(p.id);
+      toast.success("Activation request sent to admin for approval");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to request activation");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -257,6 +271,15 @@ export default function ProjectDetailPage() {
                 >
                   <Clock className="mr-1 h-3 w-3" />
                   Edit Pending Approval
+                </Badge>
+              )}
+              {p.hasPendingActivation && (
+                <Badge
+                  variant="outline"
+                  className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                >
+                  <Clock className="mr-1 h-3 w-3" />
+                  Activation Pending
                 </Badge>
               )}
             </div>
@@ -414,6 +437,30 @@ export default function ProjectDetailPage() {
                 </form>
               </DialogContent>
             </Dialog>
+
+            {p.status === "DRAFT" && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={p.hasPendingActivation || p.hasPendingEdit || isSubmitting}
+                onClick={handleRequestActivation}
+                title={
+                  p.hasPendingActivation
+                    ? "Activation request is already pending review"
+                    : p.hasPendingEdit
+                      ? "An edit request is pending — resolve it first"
+                      : ""
+                }
+              >
+                {isSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Rocket className="mr-2 h-4 w-4" />
+                )}
+                {p.hasPendingActivation ? "Activation Pending" : "Request Activation"}
+              </Button>
+            )}
+
           </div>
         </div>
 

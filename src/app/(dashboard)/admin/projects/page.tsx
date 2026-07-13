@@ -13,6 +13,8 @@ import {
   adminDeleteProject,
   approveProjectEdit,
   rejectProjectEdit,
+  approveProjectActivation,
+  rejectProjectActivation,
   getPendingMembers,
   cancelPendingAssignment,
   editPendingAssignment,
@@ -30,6 +32,7 @@ import {
   Clock,
   X,
   Mail,
+  AlertCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -384,6 +387,32 @@ export default function AdminProjectsPage() {
     }
   }
 
+  async function onApproveActivation(projectId: string) {
+    setSavingProjectId(projectId);
+    try {
+      await approveProjectActivation(projectId);
+      toast.success("Project activated.");
+      await refreshData();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve activation");
+    } finally {
+      setSavingProjectId(null);
+    }
+  }
+
+  async function onRejectActivation(projectId: string) {
+    setSavingProjectId(projectId);
+    try {
+      await rejectProjectActivation(projectId);
+      toast.info("Activation request rejected.");
+      await refreshData();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to reject activation");
+    } finally {
+      setSavingProjectId(null);
+    }
+  }
+
   async function onSaveMentor(projectId: string) {
     const teacherId = mentorDraft[projectId];
     if (!teacherId) {
@@ -548,6 +577,104 @@ export default function AdminProjectsPage() {
         </div>
       </div>
 
+      {(() => {
+        const attentionProjects = projects.filter(
+          (p: any) => p.hasPendingEdit || p.hasPendingActivation,
+        );
+
+        if (attentionProjects.length === 0) return null;
+
+        return (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.03] p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <h2 className="text-sm font-semibold text-amber-600">
+                Needs Attention ({attentionProjects.length})
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {attentionProjects.map((project: any) => (
+                <div
+                  key={project.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate">
+                        {project.title}
+                      </span>
+                      {project.hasPendingEdit && (
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs shrink-0"
+                        >
+                          Edit Request
+                        </Badge>
+                      )}
+                      {project.hasPendingActivation && (
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-xs shrink-0"
+                        >
+                          Activation Request
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {project.domain}{project.department ? ` · ${project.department}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {project.hasPendingEdit && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => onApproveEdit(project.id)}
+                          disabled={savingProjectId === project.id}
+                          className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Approve Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onRejectEdit(project.id)}
+                          disabled={savingProjectId === project.id}
+                          className="text-destructive hover:text-destructive h-8 text-xs"
+                        >
+                          <XCircle className="w-3.5 h-3.5 mr-1.5" /> Reject
+                        </Button>
+                      </>
+                    )}
+                    {!project.hasPendingEdit && project.hasPendingActivation && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => onApproveActivation(project.id)}
+                          disabled={savingProjectId === project.id}
+                          className="bg-emerald-600 hover:bg-emerald-700 h-8 text-xs"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Activate
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onRejectActivation(project.id)}
+                          disabled={savingProjectId === project.id}
+                          className="text-destructive hover:text-destructive h-8 text-xs"
+                        >
+                          <XCircle className="w-3.5 h-3.5 mr-1.5" /> Reject
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -576,7 +703,9 @@ export default function AdminProjectsPage() {
                 className={
                   project.hasPendingEdit
                     ? "border-amber-500/50 shadow-sm shadow-amber-500/10"
-                    : ""
+                    : project.hasPendingActivation
+                      ? "border-emerald-500/50 shadow-sm shadow-emerald-500/10"
+                      : ""
                 }
               >
                 <CardHeader className="pb-3">
@@ -590,6 +719,14 @@ export default function AdminProjectsPage() {
                             className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs"
                           >
                             Review Required
+                          </Badge>
+                        )}
+                        {project.hasPendingActivation && (
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-xs"
+                          >
+                            Activation Requested
                           </Badge>
                         )}
                       </CardTitle>
@@ -843,6 +980,38 @@ export default function AdminProjectsPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => onRejectEdit(project.id)}
+                          disabled={isSaving}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <XCircle className="w-4 h-4 mr-2" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {/* --------------------------------- */}
+
+                  {/* --- Pending Activation Review Block --- */}
+                  {project.hasPendingActivation && (
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+                      <h4 className="text-sm font-semibold text-emerald-600 flex items-center gap-2">
+                        Activation Request
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        The teacher has requested this project be activated.
+                      </p>
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          onClick={() => onApproveActivation(project.id)}
+                          disabled={isSaving}
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" /> Activate
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onRejectActivation(project.id)}
                           disabled={isSaving}
                           className="text-destructive hover:text-destructive"
                         >
