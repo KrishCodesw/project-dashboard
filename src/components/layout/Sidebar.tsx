@@ -434,7 +434,7 @@ export function Sidebar({ role, userName, userIsHod = false, userIsPrincipal = f
                   const callbackUrl = encodeURIComponent(
                     window.location.origin,
                   );
-                  window.location.href = `https://tcetcercd.in/logout?callbackUrl=${callbackUrl}`;
+                  window.location.href = `https://tcetcercd.in/api/auth/logout?callbackUrl=${callbackUrl}`;
                 }}
               >
                 <LogOut className="h-4 w-4 shrink-0" />

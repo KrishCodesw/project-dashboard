@@ -96,7 +96,7 @@ export function Topbar({ userId, userName, userRole, userImage }: TopbarProps) {
 
   function handleSignOut() {
     const callbackUrl = encodeURIComponent(window.location.origin);
-    window.location.href = `https://tcetcercd.in/logout?callbackUrl=${callbackUrl}`;
+    window.location.href = `https://tcetcercd.in/api/auth/logout?callbackUrl=${callbackUrl}`;
   }
 
   return (
