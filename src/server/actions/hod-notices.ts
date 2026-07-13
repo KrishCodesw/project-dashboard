@@ -61,7 +61,7 @@ export async function sendNoticeToStudents(
           <hr style="border:none;border-top:1px solid #c4c6d3;margin:16px 0;"/>
           <p style="color:#747782;font-size:12px;margin:0;">
             Sent by HOD <strong>${hod.name}</strong> · ${dept} Department
-          </p>`,
+          </p>`),
       });
       sent++;
     } catch { failed++; }
