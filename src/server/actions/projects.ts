@@ -707,6 +707,32 @@ export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemb
         return { success: false, error: `Please use a valid institutional email ending in @${domain}.` };
       }
 
+      // Check if the email already belongs to a registered user
+      const existingUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true },
+      });
+      if (existingUser) {
+        if (project.members.some((member) => member.studentId === existingUser.id)) {
+          return { success: false, error: "Student is already a member of this project" };
+        }
+        if (validated.role === "LEAD") {
+          await prisma.projectMember.updateMany({
+            where: { projectId: validated.projectId, role: "LEAD" },
+            data: { role: "MEMBER" },
+          });
+        }
+        await prisma.projectMember.create({
+          data: {
+            projectId: validated.projectId,
+            studentId: existingUser.id,
+            role: validated.role,
+          },
+        });
+        revalidatePath("/admin/projects");
+        return { success: true };
+      }
+
       // Check duplicate pending
       const existingPending = await prisma.pendingProjectAssignment.findUnique({
         where: { projectId_email: { projectId: validated.projectId, email: normalizedEmail } },
@@ -985,50 +1011,72 @@ export async function addProjectMember(
       return { success: true };
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailRegex.test(studentIdentifier)) {
-      const normalizedEmail = studentIdentifier.toLowerCase().trim();
-      if (!isInstitutionalEmail(normalizedEmail)) {
-        const domain = getInstitutionalDomain();
-        return { success: false, error: `Please use a valid institutional email ending in @${domain}.` };
-      }
+	    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	    if (emailRegex.test(studentIdentifier)) {
+	      const normalizedEmail = studentIdentifier.toLowerCase().trim();
+	      if (!isInstitutionalEmail(normalizedEmail)) {
+	        const domain = getInstitutionalDomain();
+	        return { success: false, error: `Please use a valid institutional email ending in @${domain}.` };
+	      }
 
-      // Check duplicate pending
-      const existingPending = await prisma.pendingProjectAssignment.findUnique({
-        where: { projectId_email: { projectId, email: normalizedEmail } },
-      });
-      if (existingPending) {
-        return { success: false, error: "An invitation has already been sent to this email address." };
-      }
+	      // Check if the email already belongs to a registered user
+	      const existingUser = await prisma.user.findUnique({
+	        where: { email: normalizedEmail },
+	        select: { id: true },
+	      });
+	      if (existingUser) {
+	        if (project.members.some(m => m.studentId === existingUser.id)) {
+	          return { success: false, error: "Student is already a member of this project" };
+	        }
+	        if (role === "LEAD") {
+	          await prisma.projectMember.updateMany({
+	            where: { projectId, role: "LEAD" },
+	            data: { role: "MEMBER" },
+	          });
+	        }
+	        await prisma.projectMember.create({
+	          data: { projectId, studentId: existingUser.id, role },
+	        });
+	        revalidatePath(`/teacher/projects/${projectId}/members`);
+	        return { success: true };
+	      }
 
-      // Create pending assignment
-      await prisma.pendingProjectAssignment.create({
-        data: {
-          projectId,
-          email: normalizedEmail,
-          memberRole: role,
-          invitedById: user.id,
-          status: "PENDING",
-        },
-      });
+	      // Check duplicate pending
+	      const existingPending = await prisma.pendingProjectAssignment.findUnique({
+	        where: { projectId_email: { projectId, email: normalizedEmail } },
+	      });
+	      if (existingPending) {
+	        return { success: false, error: "An invitation has already been sent to this email address." };
+	      }
 
-      // Queue email outside transaction
-      await prisma.emailQueue.create({
-        data: {
-          to: normalizedEmail,
-          subject: `Project Assignment: ${project.title}`,
-          body: buildAssignmentEmailBody(
-            project.title,
-            buildCoeLoginUrl(),
-            user.name
-          ),
-          status: "PENDING",
-        },
-      });
+	      // Create pending assignment
+	      await prisma.pendingProjectAssignment.create({
+	        data: {
+	          projectId,
+	          email: normalizedEmail,
+	          memberRole: role,
+	          invitedById: user.id,
+	          status: "PENDING",
+	        },
+	      });
 
-      revalidatePath(`/teacher/projects/${projectId}/members`);
-      return { success: true, pending: true };
-    }
+	      // Queue email outside transaction
+	      await prisma.emailQueue.create({
+	        data: {
+	          to: normalizedEmail,
+	          subject: `Project Assignment: ${project.title}`,
+	          body: buildAssignmentEmailBody(
+	            project.title,
+	            buildCoeLoginUrl(),
+	            user.name
+	          ),
+	          status: "PENDING",
+	        },
+	      });
+
+	      revalidatePath(`/teacher/projects/${projectId}/members`);
+	      return { success: true, pending: true };
+	    }
 
     // Branch C: Student null, identifier is NOT email
     return { success: false, error: "This student has not registered yet. Enter their institutional email to send them an invitation." };
@@ -1224,6 +1272,42 @@ export async function resendPendingInvitation(projectId: string, assignmentId: s
   }
   if (user.role !== "ADMIN" && assignment.project.teacherId !== user.id) {
     return { success: false, error: "Unauthorized" };
+  }
+
+  // Check if the user now exists — auto-assign instead of resending
+  const existingUser = await prisma.user.findUnique({
+    where: { email: assignment.email },
+    select: { id: true },
+  });
+  if (existingUser) {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { members: true },
+    });
+    if (!project) {
+      return { success: false, error: "Project not found." };
+    }
+    if (project.members.some(m => m.studentId === existingUser.id)) {
+      return { success: false, error: "This student is already a member of this project." };
+    }
+    if (project.members.length >= project.maxGroupSize) {
+      return { success: false, error: "This project has reached its maximum capacity." };
+    }
+    if (assignment.memberRole === "LEAD") {
+      await prisma.projectMember.updateMany({
+        where: { projectId, role: "LEAD" },
+        data: { role: "MEMBER" },
+      });
+    }
+    await prisma.$transaction([
+      prisma.pendingProjectAssignment.delete({ where: { id: assignmentId } }),
+      prisma.projectMember.create({
+        data: { projectId, studentId: existingUser.id, role: assignment.memberRole },
+      }),
+    ]);
+    revalidatePath(`/teacher/projects/${projectId}/members`);
+    revalidatePath("/admin/projects");
+    return { success: true };
   }
 
   const secondsSinceUpdate = Math.floor(
