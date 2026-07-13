@@ -523,6 +523,7 @@ export async function getAdminProjectsManagementData(params?: {
         updatedAt: true,
         hasPendingEdit: true,
         pendingEditData: true,
+        hasPendingActivation: true,
         teacher: {
           select: {
             id: true,
