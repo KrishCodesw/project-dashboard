@@ -2,11 +2,11 @@ module.exports = {
   apps: [
     {
       name: "dashboard",
-      script: "node",
-      args: ".next/standalone/server.js",
+      cwd: __dirname,
+      script: "node_modules/.bin/next",
+      args: "start -p 4003",
       env: {
         NODE_ENV: "production",
-        PORT: 4003,
       },
     },
   ],
