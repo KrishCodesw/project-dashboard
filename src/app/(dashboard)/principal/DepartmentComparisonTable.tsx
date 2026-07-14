@@ -8,7 +8,7 @@ type DeptRow = {
   studentCount: number; totalIntake: number; activeCount: number;
   completedCount: number; totalTasks: number; doneTasks: number;
   completionRate: number; taskCompletionRate: number;
-};
+};  
 
 export function DepartmentComparisonTable({ data }: { data: DeptRow[] }) {
   if (!data.length)

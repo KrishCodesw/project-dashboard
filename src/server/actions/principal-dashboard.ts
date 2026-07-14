@@ -371,36 +371,68 @@ export async function getDepartmentWorkload(): Promise<DeptWorkloadRow[]> {
   const { getCurrentAcademicYear } = await import('@/lib/academic-year');
   const year = getCurrentAcademicYear();
 
-  const [configs, projectsByDept, guidesByDept] = await Promise.all([
-    prisma.departmentConfiguration.findMany({
-      where: { isActive: true, academicYear: year },
-      select: { department: true, studentCount: true, totalIntake: true },
-    }),
-    prisma.project.groupBy({ by: ['department', 'status'], _count: true }),
-    prisma.departmentGuide.groupBy({ by: ['department'], _count: true }),
-  ]);
+  // 1. Fetch active department configurations
+  const configs = await prisma.departmentConfiguration.findMany({
+    where: { isActive: true, academicYear: year },
+    select: { department: true, studentCount: true, totalIntake: true },
+  });
 
+  // 2. Fetch all guides and map them to their departments
+  const guides = await prisma.departmentGuide.findMany({
+    select: { userId: true, department: true },
+  });
+
+  const teacherDeptMap = new Map<string, string>();
+  const guideCountsByDept = new Map<string, number>();
+
+  for (const g of guides) {
+    teacherDeptMap.set(g.userId, g.department);
+    guideCountsByDept.set(g.department, (guideCountsByDept.get(g.department) || 0) + 1);
+  }
+
+  const guideIds = Array.from(teacherDeptMap.keys());
+
+  // 3. Fetch all projects assigned to these guides
+  const projects = guideIds.length > 0
+    ? await prisma.project.findMany({
+        where: { teacherId: { in: guideIds } },
+        select: { status: true, teacherId: true },
+      })
+    : [];
+
+  // 4. Aggregate project counts by the guide's mapped department
+  const projectStatsByDept = new Map<string, { total: number; active: number; completed: number }>();
+
+  for (const p of projects) {
+    if (!p.teacherId) continue;
+    const dept = teacherDeptMap.get(p.teacherId);
+    if (!dept) continue;
+
+    const stats = projectStatsByDept.get(dept) || { total: 0, active: 0, completed: 0 };
+    stats.total += 1;
+    if (p.status === 'ACTIVE') stats.active += 1;
+    if (p.status === 'COMPLETED') stats.completed += 1;
+    projectStatsByDept.set(dept, stats);
+  }
+
+  // 5. Build the final payload matched against the configurations
   return configs
     .map((c) => {
-      const deptRows   = projectsByDept.filter((p) => p.department === c.department);
-      const total      = deptRows.reduce((s, p) => s + p._count, 0);
-      const active     = deptRows.find((p) => p.status === 'ACTIVE')?._count ?? 0;
-      const completed  = deptRows.find((p) => p.status === 'COMPLETED')?._count ?? 0;
-      const guides     = guidesByDept.find((g) => g.department === c.department)?._count ?? 0;
+      const stats = projectStatsByDept.get(c.department) || { total: 0, active: 0, completed: 0 };
+      const guideCount = guideCountsByDept.get(c.department) || 0;
 
       return {
-        department:    c.department,
-        totalIntake:   c.totalIntake ?? 0,
-        projectCount:  total,
-        activeProjects: active,
-        guideCount:    guides,
-        studentCount:  c.studentCount,
-        completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+        department: c.department,
+        totalIntake: c.totalIntake ?? 0,
+        projectCount: stats.total,
+        activeProjects: stats.active,
+        guideCount: guideCount,
+        studentCount: c.studentCount,
+        completionRate: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
       };
     })
     .sort((a, b) => b.projectCount - a.projectCount);
 }
-
 // ─────────────────────────────────────────────────────────────────
 // DEPARTMENT COMPARISON WITH INTAKE
 // ─────────────────────────────────────────────────────────────────
