@@ -19,3 +19,5 @@ jobs:
           npx prisma migrate deploy
           npm run build
           pm2 restart dashboard
+          chmod +x scripts/setup-task-reminder-cron.sh
+          ./scripts/setup-task-reminder-cron.sh

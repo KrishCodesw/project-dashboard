@@ -25,6 +25,22 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ENV_FILE="${ENV_FILE:-$REPO_ROOT/.env}"
+
+# Fall back to reading APP_URL / EMAIL_QUEUE_CRON_SECRET from .env if they
+# aren't already set in the environment. This lets the script run fully
+# unattended (e.g. from deploy.yml) without anyone exporting vars by hand.
+if [[ -f "$ENV_FILE" ]]; then
+  if [[ -z "${APP_URL:-}" ]]; then
+    APP_URL="$(grep -E '^NEXT_PUBLIC_APP_URL=' "$ENV_FILE" | tail -n1 | cut -d'=' -f2- | tr -d '"'"'"' \r')"
+  fi
+  if [[ -z "${EMAIL_QUEUE_CRON_SECRET:-}" ]]; then
+    EMAIL_QUEUE_CRON_SECRET="$(grep -E '^EMAIL_QUEUE_CRON_SECRET=' "$ENV_FILE" | tail -n1 | cut -d'=' -f2- | tr -d '"'"'"' \r')"
+  fi
+fi
+
 APP_URL="${APP_URL:-}"
 EMAIL_QUEUE_CRON_SECRET="${EMAIL_QUEUE_CRON_SECRET:-}"
 SCHEDULE="${SCHEDULE:-0 8 * * *}"
@@ -32,12 +48,13 @@ ENDPOINT_PATH="/api/cron/send-task-reminders"
 MARKER="# task-reminder-cron (managed by scripts/setup-task-reminder-cron.sh)"
 
 if [[ -z "$APP_URL" ]]; then
-  echo "ERROR: APP_URL is not set. Example: export APP_URL=https://dashboard.example.edu" >&2
+  echo "ERROR: APP_URL is not set and NEXT_PUBLIC_APP_URL was not found in $ENV_FILE." >&2
+  echo "       Either add NEXT_PUBLIC_APP_URL to .env, or export APP_URL=https://dashboard.example.edu before running." >&2
   exit 1
 fi
 
 if [[ -z "$EMAIL_QUEUE_CRON_SECRET" ]]; then
-  echo "ERROR: EMAIL_QUEUE_CRON_SECRET is not set. It must match the value in the app's .env file." >&2
+  echo "ERROR: EMAIL_QUEUE_CRON_SECRET is not set and was not found in $ENV_FILE." >&2
   exit 1
 fi
 
