@@ -434,59 +434,6 @@ export async function getDepartmentWorkload(): Promise<DeptWorkloadRow[]> {
     .sort((a, b) => b.projectCount - a.projectCount);
 }
 // ─────────────────────────────────────────────────────────────────
-// DEPARTMENT COMPARISON WITH INTAKE
-// ─────────────────────────────────────────────────────────────────
-// export async function getDepartmentComparisonWithIntake() {
-//   await requirePrincipal();
-
-//   const { getCurrentAcademicYear } = await import('@/lib/academic-year');
-//   const year = getCurrentAcademicYear();
-
-//   const configs = await prisma.departmentConfiguration.findMany({
-//     where: { isActive: true, academicYear: year },
-//     select: { department: true, studentCount: true, totalIntake: true },
-//   });
-
-//   const departments = configs.map((c) => c.department);
-//   if (!departments.length) return [];
-
-//   const [projectStats, taskStats, guideStats] = await Promise.all([
-//     prisma.project.findMany({
-//       where: { department: { in: departments } },
-//       select: { department: true, status: true },
-//     }),
-//     prisma.task.findMany({
-//       where: { project: { department: { in: departments } } },
-//       select: { status: true, project: { select: { department: true } } },
-//     }),
-//     prisma.departmentGuide.groupBy({ by: ['department'], _count: true }),
-//   ]);
-
-//   return configs.map((c) => {
-//     const dp          = projectStats.filter((p) => p.department === c.department);
-//     const dt          = taskStats.filter((t) => t.project.department === c.department);
-//     const projectCount   = dp.length;
-//     const activeCount    = dp.filter((p) => p.status === 'ACTIVE').length;
-//     const completedCount = dp.filter((p) => p.status === 'COMPLETED').length;
-//     const totalTasks     = dt.length;
-//     const doneTasks      = dt.filter((t) => t.status === 'DONE').length;
-//     const guideCount     = guideStats.find((g) => g.department === c.department)?._count ?? 0;
-
-//     return {
-//       department:          c.department,
-//       projectCount,
-//       guideCount,
-//       studentCount:        c.studentCount,
-//       totalIntake:         c.totalIntake ?? 0,
-//       activeCount,
-//       completedCount,
-//       totalTasks,
-//       doneTasks,
-//       completionRate:     projectCount > 0 ? Math.round((completedCount / projectCount) * 100) : 0,
-//       taskCompletionRate: totalTasks   > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0,
-//     };
-//   });
-// }
 // ─────────────────────────────────────────────────────────────────
 // DEPARTMENT COMPARISON WITH INTAKE (Refactored to Guide-Based)
 // ─────────────────────────────────────────────────────────────────
