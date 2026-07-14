@@ -1,38 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { wrapEmailBody } from "@/lib/email";
-import { NotificationType } from "@prisma/client";
 
-/**
- * How far ahead (in hours) a due date counts as "approaching".
- * Overridable via env so ops can tune it without a redeploy.
- */
 const REMINDER_WINDOW_HOURS = Number(process.env.TASK_REMINDER_WINDOW_HOURS ?? 24);
+const BATCH_SIZE = 500;
 
 function hoursFromNow(hours: number): Date {
   return new Date(Date.now() + hours * 60 * 60 * 1000);
-}
-
-/**
- * Prevents duplicate reminders across cron runs: looks for a notification
- * of the same type/link created after the given "anchor" time (e.g. the
- * task's updatedAt, or "now minus window" for recurring due dates).
- */
-async function alreadyNotified(
-  userId: string,
-  type: NotificationType,
-  link: string,
-  sinceIso: Date
-): Promise<boolean> {
-  const existing = await prisma.notification.findFirst({
-    where: {
-      userId,
-      type,
-      link,
-      createdAt: { gte: sinceIso },
-    },
-    select: { id: true },
-  });
-  return Boolean(existing);
 }
 
 function formatDate(d: Date): string {
@@ -43,32 +16,30 @@ function formatDate(d: Date): string {
   });
 }
 
-async function queueReminderEmail(params: {
-  to: string;
-  name: string;
-  subject: string;
-  heading: string;
-  bodyLines: string[];
-  ctaLabel: string;
-  ctaLink: string;
-}) {
-  const { to, name, subject, heading, bodyLines, ctaLabel, ctaLink } = params;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+/**
+ * Batch dedup: given a list of candidate (userId, type, link, since) tuples,
+ * returns a Set of `${userId}:${link}` keys that already have a notification.
+ */
+async function filterAlreadyNotified(
+  candidates: Array<{ userId: string; type: string; link: string; since: Date }>
+): Promise<Set<string>> {
+  if (candidates.length === 0) return new Set();
 
-  await prisma.emailQueue.create({
-    data: {
-      to,
-      subject,
-      body: wrapEmailBody(`
-        <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">${heading}</h2>
-        <p style="color:#434651;font-size:14px;margin:0 0 4px;">Dear <strong>${name}</strong>,</p>
-        ${bodyLines.map((line) => `<p style="color:#434651;font-size:14px;margin:12px 0;">${line}</p>`).join("")}
-        <p style="margin:16px 0;">
-          <a href="${appUrl}${ctaLink}" style="background:#002155;color:#ffffff;padding:10px 18px;border-radius:4px;text-decoration:none;font-size:14px;">${ctaLabel}</a>
-        </p>
-      `),
-    },
+  const orConditions = candidates.map((c) => ({
+    userId: c.userId,
+    type: c.type as any,
+    link: c.link,
+    createdAt: { gte: c.since },
+  }));
+
+  const existing = await prisma.notification.findMany({
+    where: { OR: orConditions },
+    select: { userId: true, link: true },
   });
+
+  const seen = new Set<string>();
+  for (const n of existing) seen.add(`${n.userId}:${n.link}`);
+  return seen;
 }
 
 type ReminderCounts = {
@@ -80,13 +51,9 @@ type ReminderCounts = {
   milestoneRemindersSent: number;
 };
 
-/**
- * 1) Per-student reminders for tasks assigned to them that are
- *    overdue, or due within REMINDER_WINDOW_HOURS.
- */
 async function remindAssignedTasks(counts: ReminderCounts) {
   const windowEnd = hoursFromNow(REMINDER_WINDOW_HOURS);
-  const dedupeSince = hoursFromNow(-REMINDER_WINDOW_HOURS); // don't re-notify within one window
+  const dedupeSince = hoursFromNow(-REMINDER_WINDOW_HOURS);
 
   const tasks = await prisma.task.findMany({
     where: {
@@ -94,6 +61,7 @@ async function remindAssignedTasks(counts: ReminderCounts) {
       status: { notIn: ["DONE"] },
       dueDate: { not: null, lte: windowEnd },
     },
+    take: BATCH_SIZE,
     select: {
       id: true,
       title: true,
@@ -106,53 +74,70 @@ async function remindAssignedTasks(counts: ReminderCounts) {
   });
 
   counts.tasksChecked = tasks.length;
+  if (tasks.length === 0) return;
+
+  // Batch dedup
+  const candidates = tasks
+    .filter((t) => t.assignedTo && t.dueDate)
+    .map((t) => ({
+      userId: t.assignedTo!.id,
+      type: "DEADLINE_APPROACHING",
+      link: `/student/projects/${t.projectId}/tasks/${t.id}`,
+      since: dedupeSince,
+    }));
+  const notified = await filterAlreadyNotified(candidates);
+  const due = candidates.filter((c) => !notified.has(`${c.userId}:${c.link}`));
+  const dueSet = new Set(due.map((d) => `${d.userId}:${d.link}`));
+
+  const now = Date.now();
+  const notificationData: Array<{
+    userId: string;
+    type: string;
+    title: string;
+    message: string;
+    link: string;
+  }> = [];
+  const emailData: Array<{ to: string; subject: string; body: string }> = [];
 
   for (const task of tasks) {
     if (!task.assignedTo || !task.dueDate) continue;
-
     const link = `/student/projects/${task.projectId}/tasks/${task.id}`;
-    const isOverdue = task.dueDate.getTime() < Date.now();
+    if (!dueSet.has(`${task.assignedTo.id}:${link}`)) continue;
 
-    const notified = await alreadyNotified(
-      task.assignedTo.id,
-      "DEADLINE_APPROACHING",
-      link,
-      dedupeSince
-    );
-    if (notified) continue;
-
+    const isOverdue = task.dueDate.getTime() < now;
     const statusPhrase = isOverdue ? "is overdue" : "is due soon";
 
-    await prisma.notification.create({
-      data: {
-        userId: task.assignedTo.id,
-        type: NotificationType.DEADLINE_APPROACHING,
-        title: isOverdue ? "Task overdue" : "Task due soon",
-        message: `"${task.title}" in ${task.project.title} ${statusPhrase} (due ${formatDate(task.dueDate)}).`,
-        link,
-      },
+    notificationData.push({
+      userId: task.assignedTo.id,
+      type: "DEADLINE_APPROACHING",
+      title: isOverdue ? "Task overdue" : "Task due soon",
+      message: `"${task.title}" in ${task.project.title} ${statusPhrase} (due ${formatDate(task.dueDate)}).`,
+      link,
     });
 
-    await queueReminderEmail({
+    emailData.push({
       to: task.assignedTo.email,
-      name: task.assignedTo.name,
       subject: `${isOverdue ? "Overdue" : "Reminder"}: "${task.title}" — ${task.project.title}`,
-      heading: isOverdue ? "Task Overdue" : "Task Due Soon",
-      bodyLines: [
-        `Your task <strong>${task.title}</strong> in project <strong>${task.project.title}</strong> ${statusPhrase}.`,
-        `Due date: <strong>${formatDate(task.dueDate)}</strong>.`,
-      ],
-      ctaLabel: "View Task",
-      ctaLink: link,
+      body: wrapEmailBody(`
+        <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">${isOverdue ? "Task Overdue" : "Task Due Soon"}</h2>
+        <p style="color:#434651;font-size:14px;margin:0 0 4px;">Dear <strong>${task.assignedTo.name}</strong>,</p>
+        <p style="color:#434651;font-size:14px;margin:12px 0;">Your task <strong>${task.title}</strong> in project <strong>${task.project.title}</strong> ${statusPhrase}.</p>
+        <p style="color:#434651;font-size:14px;margin:12px 0;">Due date: <strong>${formatDate(task.dueDate)}</strong>.</p>
+        <p style="margin:16px 0;"><a href="${process.env.NEXT_PUBLIC_APP_URL ?? ""}${link}" style="background:#002155;color:#ffffff;padding:10px 18px;border-radius:4px;text-decoration:none;font-size:14px;">View Task</a></p>
+      `),
     });
 
     counts.taskRemindersSent += 1;
   }
+
+  if (notificationData.length > 0) {
+    await prisma.notification.createMany({ data: notificationData as any });
+  }
+  if (emailData.length > 0) {
+    await prisma.emailQueue.createMany({ data: emailData });
+  }
 }
 
-/**
- * 2) Whole-team reminders for upcoming scheduled reviews on a project.
- */
 async function remindUpcomingReviews(counts: ReminderCounts) {
   const windowEnd = hoursFromNow(REMINDER_WINDOW_HOURS);
   const dedupeSince = hoursFromNow(-REMINDER_WINDOW_HOURS);
@@ -162,6 +147,7 @@ async function remindUpcomingReviews(counts: ReminderCounts) {
       status: "SCHEDULED",
       scheduledAt: { gte: new Date(), lte: windowEnd },
     },
+    take: BATCH_SIZE,
     select: {
       id: true,
       reviewType: true,
@@ -177,52 +163,71 @@ async function remindUpcomingReviews(counts: ReminderCounts) {
   });
 
   counts.reviewsChecked = reviews.length;
+  if (reviews.length === 0) return;
+
+  const notificationData: Array<{
+    userId: string;
+    type: string;
+    title: string;
+    message: string;
+    link: string;
+  }> = [];
+  const emailData: Array<{ to: string; subject: string; body: string }> = [];
+  const candidates: Array<{ userId: string; type: string; link: string; since: Date }> = [];
 
   for (const review of reviews) {
     const link = `/student/projects/${review.projectId}/reviews`;
 
     for (const member of review.project.members) {
       const student = member.student;
-
-      const notified = await alreadyNotified(
-        student.id,
-        "REVIEW_SCHEDULED",
+      candidates.push({
+        userId: student.id,
+        type: "REVIEW_SCHEDULED",
         link,
-        dedupeSince
-      );
-      if (notified) continue;
-
-      await prisma.notification.create({
-        data: {
-          userId: student.id,
-          type: NotificationType.REVIEW_SCHEDULED,
-          title: "Upcoming review",
-          message: `A ${review.reviewType} review for ${review.project.title} is scheduled for ${formatDate(review.scheduledAt)}.`,
-          link,
-        },
+        since: dedupeSince,
       });
-
-      await queueReminderEmail({
+      notificationData.push({
+        userId: student.id,
+        type: "REVIEW_SCHEDULED",
+        title: "Upcoming review",
+        message: `A ${review.reviewType} review for ${review.project.title} is scheduled for ${formatDate(review.scheduledAt)}.`,
+        link,
+      });
+      emailData.push({
         to: student.email,
-        name: student.name,
         subject: `Upcoming review — ${review.project.title}`,
-        heading: "Upcoming Review",
-        bodyLines: [
-          `A <strong>${review.reviewType}</strong> review for your project <strong>${review.project.title}</strong> is scheduled.`,
-          `Scheduled for: <strong>${formatDate(review.scheduledAt)}</strong>.`,
-        ],
-        ctaLabel: "View Project",
-        ctaLink: link,
+        body: wrapEmailBody(`
+          <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">Upcoming Review</h2>
+          <p style="color:#434651;font-size:14px;margin:0 0 4px;">Dear <strong>${student.name}</strong>,</p>
+          <p style="color:#434651;font-size:14px;margin:12px 0;">A <strong>${review.reviewType}</strong> review for your project <strong>${review.project.title}</strong> is scheduled.</p>
+          <p style="color:#434651;font-size:14px;margin:12px 0;">Scheduled for: <strong>${formatDate(review.scheduledAt)}</strong>.</p>
+          <p style="margin:16px 0;"><a href="${process.env.NEXT_PUBLIC_APP_URL ?? ""}${link}" style="background:#002155;color:#ffffff;padding:10px 18px;border-radius:4px;text-decoration:none;font-size:14px;">View Project</a></p>
+        `),
       });
-
-      counts.reviewRemindersSent += 1;
     }
+  }
+
+  const notified = await filterAlreadyNotified(candidates);
+  const finalNotifications = notificationData.filter(
+    (n) => !notified.has(`${n.userId}:${n.link}`)
+  );
+  const notifiedSet = new Set(
+    candidates.filter((c) => notified.has(`${c.userId}:${c.link}`)).map((c) => `${c.userId}:${c.link}`)
+  );
+  const finalEmails = emailData.filter(
+    (_, i) => !notifiedSet.has(`${candidates[i].userId}:${candidates[i].link}`)
+  );
+
+  counts.reviewRemindersSent = finalNotifications.length;
+
+  if (finalNotifications.length > 0) {
+    await prisma.notification.createMany({ data: finalNotifications as any });
+  }
+  if (finalEmails.length > 0) {
+    await prisma.emailQueue.createMany({ data: finalEmails });
   }
 }
 
-/**
- * 3) Whole-team reminders for upcoming/overdue project milestones.
- */
 async function remindUpcomingMilestones(counts: ReminderCounts) {
   const windowEnd = hoursFromNow(REMINDER_WINDOW_HOURS);
   const dedupeSince = hoursFromNow(-REMINDER_WINDOW_HOURS);
@@ -232,6 +237,7 @@ async function remindUpcomingMilestones(counts: ReminderCounts) {
       isCompleted: false,
       dueDate: { lte: windowEnd },
     },
+    take: BATCH_SIZE,
     select: {
       id: true,
       title: true,
@@ -247,49 +253,72 @@ async function remindUpcomingMilestones(counts: ReminderCounts) {
   });
 
   counts.milestonesChecked = milestones.length;
+  if (milestones.length === 0) return;
+
+  const now = Date.now();
+  const notificationData: Array<{
+    userId: string;
+    type: string;
+    title: string;
+    message: string;
+    link: string;
+  }> = [];
+  const emailData: Array<{ to: string; subject: string; body: string }> = [];
+  const candidates: Array<{ userId: string; type: string; link: string; since: Date }> = [];
 
   for (const milestone of milestones) {
     const link = `/student/projects/${milestone.projectId}/milestones`;
-    const isOverdue = milestone.dueDate.getTime() < Date.now();
+    const isOverdue = milestone.dueDate.getTime() < now;
+    const statusPhrase = isOverdue ? "is overdue" : "is due soon";
 
     for (const member of milestone.project.members) {
       const student = member.student;
 
-      const notified = await alreadyNotified(
-        student.id,
-        "MILESTONE_DUE",
+      candidates.push({
+        userId: student.id,
+        type: "MILESTONE_DUE",
         link,
-        dedupeSince
-      );
-      if (notified) continue;
-
-      const statusPhrase = isOverdue ? "is overdue" : "is due soon";
-
-      await prisma.notification.create({
-        data: {
-          userId: student.id,
-          type: NotificationType.MILESTONE_DUE,
-          title: isOverdue ? "Milestone overdue" : "Milestone due soon",
-          message: `Milestone "${milestone.title}" for ${milestone.project.title} ${statusPhrase} (due ${formatDate(milestone.dueDate)}).`,
-          link,
-        },
+        since: dedupeSince,
       });
-
-      await queueReminderEmail({
+      notificationData.push({
+        userId: student.id,
+        type: "MILESTONE_DUE",
+        title: isOverdue ? "Milestone overdue" : "Milestone due soon",
+        message: `Milestone "${milestone.title}" for ${milestone.project.title} ${statusPhrase} (due ${formatDate(milestone.dueDate)}).`,
+        link,
+      });
+      emailData.push({
         to: student.email,
-        name: student.name,
         subject: `${isOverdue ? "Overdue" : "Reminder"}: Milestone "${milestone.title}" — ${milestone.project.title}`,
-        heading: isOverdue ? "Milestone Overdue" : "Milestone Due Soon",
-        bodyLines: [
-          `The milestone <strong>${milestone.title}</strong> for your project <strong>${milestone.project.title}</strong> ${statusPhrase}.`,
-          `Due date: <strong>${formatDate(milestone.dueDate)}</strong>.`,
-        ],
-        ctaLabel: "View Milestones",
-        ctaLink: link,
+        body: wrapEmailBody(`
+          <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">${isOverdue ? "Milestone Overdue" : "Milestone Due Soon"}</h2>
+          <p style="color:#434651;font-size:14px;margin:0 0 4px;">Dear <strong>${student.name}</strong>,</p>
+          <p style="color:#434651;font-size:14px;margin:12px 0;">The milestone <strong>${milestone.title}</strong> for your project <strong>${milestone.project.title}</strong> ${statusPhrase}.</p>
+          <p style="color:#434651;font-size:14px;margin:12px 0;">Due date: <strong>${formatDate(milestone.dueDate)}</strong>.</p>
+          <p style="margin:16px 0;"><a href="${process.env.NEXT_PUBLIC_APP_URL ?? ""}${link}" style="background:#002155;color:#ffffff;padding:10px 18px;border-radius:4px;text-decoration:none;font-size:14px;">View Milestones</a></p>
+        `),
       });
-
-      counts.milestoneRemindersSent += 1;
     }
+  }
+
+  const notified = await filterAlreadyNotified(candidates);
+  const finalNotifications = notificationData.filter(
+    (n) => !notified.has(`${n.userId}:${n.link}`)
+  );
+  const notifiedSet = new Set(
+    candidates.filter((c) => notified.has(`${c.userId}:${c.link}`)).map((c) => `${c.userId}:${c.link}`)
+  );
+  const finalEmails = emailData.filter(
+    (_, i) => !notifiedSet.has(`${candidates[i].userId}:${candidates[i].link}`)
+  );
+
+  counts.milestoneRemindersSent = finalNotifications.length;
+
+  if (finalNotifications.length > 0) {
+    await prisma.notification.createMany({ data: finalNotifications as any });
+  }
+  if (finalEmails.length > 0) {
+    await prisma.emailQueue.createMany({ data: finalEmails });
   }
 }
 
