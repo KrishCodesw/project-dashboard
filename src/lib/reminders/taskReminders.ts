@@ -16,6 +16,13 @@ function formatDate(d: Date): string {
   });
 }
 
+const MAX_SUBJECT_LENGTH = 180;
+
+function truncateSubject(text: string): string {
+  if (text.length <= MAX_SUBJECT_LENGTH) return text;
+  return text.slice(0, MAX_SUBJECT_LENGTH - 1) + "…";
+}
+
 /**
  * Batch dedup: given a list of candidate (userId, type, link, since) tuples,
  * returns a Set of `${userId}:${link}` keys that already have a notification.
@@ -117,7 +124,7 @@ async function remindAssignedTasks(counts: ReminderCounts) {
 
     emailData.push({
       to: task.assignedTo.email,
-      subject: `${isOverdue ? "Overdue" : "Reminder"}: "${task.title}" — ${task.project.title}`,
+      subject: truncateSubject(`${isOverdue ? "Overdue" : "Reminder"}: "${task.title}" — ${task.project.title}`),
       body: wrapEmailBody(`
         <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">${isOverdue ? "Task Overdue" : "Task Due Soon"}</h2>
         <p style="color:#434651;font-size:14px;margin:0 0 4px;">Dear <strong>${task.assignedTo.name}</strong>,</p>
@@ -195,7 +202,7 @@ async function remindUpcomingReviews(counts: ReminderCounts) {
       });
       emailData.push({
         to: student.email,
-        subject: `Upcoming review — ${review.project.title}`,
+        subject: truncateSubject(`Upcoming review — ${review.project.title}`),
         body: wrapEmailBody(`
           <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">Upcoming Review</h2>
           <p style="color:#434651;font-size:14px;margin:0 0 4px;">Dear <strong>${student.name}</strong>,</p>
@@ -289,7 +296,7 @@ async function remindUpcomingMilestones(counts: ReminderCounts) {
       });
       emailData.push({
         to: student.email,
-        subject: `${isOverdue ? "Overdue" : "Reminder"}: Milestone "${milestone.title}" — ${milestone.project.title}`,
+        subject: truncateSubject(`${isOverdue ? "Overdue" : "Reminder"}: Milestone "${milestone.title}" — ${milestone.project.title}`),
         body: wrapEmailBody(`
           <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">${isOverdue ? "Milestone Overdue" : "Milestone Due Soon"}</h2>
           <p style="color:#434651;font-size:14px;margin:0 0 4px;">Dear <strong>${student.name}</strong>,</p>
