@@ -190,3 +190,78 @@ export async function rejectTeacherRegistration(userId: string) {
   revalidatePath("/admin/users");
   return { ok: true };
 }
+
+export type AdminDashboardStats = {
+  userCounts: { total: number; students: number; teachers: number; admins: number };
+  projectsByStatus: Array<{ status: string; count: number }>;
+  projectsByDepartment: Array<{ department: string; count: number }>;
+  taskStatusDistribution: Array<{ status: string; count: number }>;
+  milestoneStats: { total: number; completed: number; overdue: number };
+  reviewStats: { total: number; scheduled: number; completed: number };
+  publicationCount: number;
+  showcaseCount: number;
+  pendingShowcaseCount: number;
+  projectsOverdue: number;
+  totalProjectMembers: number;
+};
+
+export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
+  await requireRole("ADMIN");
+
+  const now = new Date();
+
+  const [
+    userCounts,
+    projectsByStatus,
+    projectsByDepartment,
+    taskStatusDistribution,
+    milestoneStats,
+    reviewStats,
+    publicationCount,
+    showcaseCount,
+    pendingShowcaseCount,
+    overdueProjects,
+    totalProjectMembers,
+  ] = await Promise.all([
+    (async () => ({
+      total: await prisma.user.count(),
+      students: await prisma.user.count({ where: { role: "STUDENT" } }),
+      teachers: await prisma.user.count({ where: { role: "TEACHER" } }),
+      admins: await prisma.user.count({ where: { role: "ADMIN" } }),
+    }))(),
+    prisma.project.groupBy({ by: ["status"], _count: true }),
+    prisma.project.groupBy({ by: ["department"], _count: true, orderBy: { _count: { department: "desc" } }, take: 10 }),
+    prisma.task.groupBy({ by: ["status"], _count: true }),
+    (async () => {
+      const total = await prisma.milestone.count();
+      const completed = await prisma.milestone.count({ where: { isCompleted: true } });
+      const overdue = await prisma.milestone.count({ where: { isCompleted: false, dueDate: { lt: now } } });
+      return { total, completed, overdue };
+    })(),
+    (async () => {
+      const total = await prisma.review.count();
+      const scheduled = await prisma.review.count({ where: { status: "SCHEDULED" } });
+      const completed = await prisma.review.count({ where: { status: "COMPLETED" } });
+      return { total, scheduled, completed };
+    })(),
+    prisma.publication.count(),
+    prisma.showcaseProject.count(),
+    prisma.showcaseProject.count({ where: { status: { in: ["SUBMITTED", "UNDER_REVIEW", "CHANGES_REQUESTED"] } } }),
+    prisma.project.count({ where: { status: { notIn: ["COMPLETED", "ARCHIVED"] }, endDate: { lt: now } } }),
+    prisma.projectMember.count(),
+  ]);
+
+  return {
+    userCounts,
+    projectsByStatus: projectsByStatus.map((p) => ({ status: p.status, count: p._count })),
+    projectsByDepartment: projectsByDepartment.map((p) => ({ department: p.department ?? "Unassigned", count: p._count })),
+    taskStatusDistribution: taskStatusDistribution.map((t) => ({ status: t.status, count: t._count })),
+    milestoneStats,
+    reviewStats,
+    publicationCount,
+    showcaseCount,
+    pendingShowcaseCount,
+    projectsOverdue: overdueProjects,
+    totalProjectMembers,
+  };
+}
