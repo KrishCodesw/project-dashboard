@@ -1,6 +1,9 @@
 import { verifyCoEToken } from "@/lib/coe-auth";
 import { NextResponse, type NextRequest } from "next/server";
 
+/** Strip chars >U+00FF so HTTP headers don't throw ByteString errors (smart quotes, emoji, etc). */
+const stripNonLatin1 = (s: string): string => s.replace(/[^\x00-\xFF]/g, "");
+
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isShowcaseAuthorRoute = pathname.startsWith("/showcase/my-projects");
@@ -96,7 +99,7 @@ export default async function middleware(req: NextRequest) {
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set("x-coe-email", payload.email);
-  requestHeaders.set("x-coe-name", payload.name || "");
+  requestHeaders.set("x-coe-name", stripNonLatin1(payload.name || ""));
   requestHeaders.set("x-coe-role", payload.role);
   requestHeaders.set("x-coe-status", payload.status);
 
