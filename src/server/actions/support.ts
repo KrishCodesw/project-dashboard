@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { parseOrThrow } from "@/lib/zod-utils";
 import { revalidatePath } from "next/cache";
 import { requireCoeUser } from "@/lib/coe-guard";
 import { supportService } from "@/lib/support/SupportService";
@@ -55,7 +56,7 @@ function collectFiles(formData: FormData): File[] {
 export async function createTicket(formData: FormData) {
   const user = await requireCoeUser();
 
-  const parsed = createTicketSchema.parse({
+  const parsed = parseOrThrow(createTicketSchema, {
     subject: formData.get("subject"),
     description: formData.get("description"),
     category: formData.get("category"),
@@ -126,7 +127,7 @@ export async function createTicket(formData: FormData) {
 export async function replyToTicket(chatwootId: number, formData: FormData) {
   const user = await requireCoeUser();
 
-  const parsed = replySchema.parse({
+  const parsed = parseOrThrow(replySchema, {
     content: formData.get("content"),
   });
 

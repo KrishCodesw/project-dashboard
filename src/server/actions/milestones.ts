@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/coe-guard";
 import { z } from "zod";
+import { parseOrThrow } from "@/lib/zod-utils";
 import { revalidatePath } from "next/cache";
 import { updateProjectCompletion } from "@/lib/completion";
 
@@ -17,7 +18,7 @@ const createMilestoneSchema = z.object({
 export async function createMilestone(data: z.infer<typeof createMilestoneSchema>) {
   await requireRole("TEACHER");
 
-  const validated = createMilestoneSchema.parse(data);
+  const validated = parseOrThrow(createMilestoneSchema, data);
   const milestone = await prisma.milestone.create({
     data: {
       projectId: validated.projectId,

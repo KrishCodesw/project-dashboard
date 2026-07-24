@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { parseOrThrow } from "@/lib/zod-utils";
 import { prisma } from "@/lib/prisma";
 import { createBulkNotifications, createNotification } from "@/lib/notifications";
 import { requireRole } from "@/lib/coe-guard";
@@ -58,7 +59,7 @@ const approveRejectSchema = z.object({
 
 // Actions
 export async function createPublication(data: z.infer<typeof createPublicationSchema>) {
-  const parsedData = createPublicationSchema.parse(data);
+  const parsedData = parseOrThrow(createPublicationSchema, data);
   const user = await requireRole(["TEACHER", "STUDENT", "ADMIN"]);
 
   const project = await prisma.project.findUnique({
@@ -136,7 +137,7 @@ export async function createPublication(data: z.infer<typeof createPublicationSc
 }
 
 export async function updatePublication(data: z.infer<typeof updatePublicationSchema>) {
-  const parsedData = updatePublicationSchema.parse(data);
+  const parsedData = parseOrThrow(updatePublicationSchema, data);
   const user = await requireRole(["TEACHER"]);
 
   const publication = await prisma.publication.findUnique({
@@ -194,7 +195,7 @@ export async function updatePublication(data: z.infer<typeof updatePublicationSc
 }
 
 export async function approvePublication(data: z.infer<typeof approveRejectSchema>) {
-  const parsedData = approveRejectSchema.parse(data);
+  const parsedData = parseOrThrow(approveRejectSchema, data);
   const user = await requireRole(["ADMIN"]); 
 
   const publication = await prisma.publication.findUnique({
@@ -256,7 +257,7 @@ export async function approvePublication(data: z.infer<typeof approveRejectSchem
 }
 
 export async function rejectPublication(data: z.infer<typeof approveRejectSchema>) {
-  const parsedData = approveRejectSchema.parse(data);
+  const parsedData = parseOrThrow(approveRejectSchema, data);
   const user = await requireRole(["ADMIN"]);
 
   const publication = await prisma.publication.findUnique({

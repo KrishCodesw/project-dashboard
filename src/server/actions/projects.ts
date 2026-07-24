@@ -5,6 +5,7 @@ import { requireCoeUser, requireRole } from "@/lib/coe-guard";
 import { resolveStudent } from "@/lib/resolve-user";
 import { deleteS3Object } from "@/lib/s3";
 import { z } from "zod";
+import { parseOrThrow } from "@/lib/zod-utils";
 import { revalidatePath } from "next/cache";
 import { isInstitutionalEmail, getInstitutionalDomain } from "@/lib/validation";
 import { createBulkNotifications } from "@/lib/notifications";
@@ -44,7 +45,7 @@ const requestEditSchema = z.object({
 export async function requestProjectEdit(data: z.infer<typeof requestEditSchema>) {
   // Allow any authenticated user (Teacher/Student) to submit a request
   // Validation can be expanded here to ensure they belong to the project
-  const validated = requestEditSchema.parse(data);
+  const validated = parseOrThrow(requestEditSchema, data);
 
   const project = await prisma.project.findUnique({ where: { id: validated.projectId } });
   if (!project) throw new Error("Project not found");
@@ -340,7 +341,7 @@ export async function adminUploadProjectAssignments(data: z.infer<typeof adminUp
   const admin = await prisma.user.findUnique({ where: { id: adminId }, select: { name: true } });
   const invitedByName = admin?.name || "Administrator";
 
-  const validated = adminUploadAssignmentsSchema.parse(data);
+  const validated = parseOrThrow(adminUploadAssignmentsSchema, data);
   const rows = parseAssignmentCsv(validated.csvContent);
 
   const projects = await prisma.project.findMany({
@@ -588,7 +589,7 @@ export async function getAdminProjectsManagementData(params?: {
 
 export async function adminUpdateProject(data: z.infer<typeof adminUpdateProjectSchema>) {
   await requireAdminSession();
-  const validated = adminUpdateProjectSchema.parse(data);
+  const validated = parseOrThrow(adminUpdateProjectSchema, data);
 
   const project = await prisma.project.findUnique({ where: { id: validated.projectId } });
   if (!project) {
@@ -623,7 +624,7 @@ export async function adminUpdateProject(data: z.infer<typeof adminUpdateProject
 
 export async function adminUpdateProjectMentor(data: z.infer<typeof adminUpdateMentorSchema>) {
   await requireAdminSession();
-  const validated = adminUpdateMentorSchema.parse(data);
+  const validated = parseOrThrow(adminUpdateMentorSchema, data);
 
   const [project, teacher] = await Promise.all([
     prisma.project.findUnique({ where: { id: validated.projectId }, select: { id: true } }),
@@ -655,7 +656,7 @@ export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemb
     const adminId = await requireAdminSession();
     const admin = await prisma.user.findUnique({ where: { id: adminId }, select: { name: true } });
     const invitedByName = admin?.name || "Administrator";
-    const validated = adminUpsertMemberSchema.parse(data);
+    const validated = parseOrThrow(adminUpsertMemberSchema, data);
 
     const project = await prisma.project.findUnique({
       where: { id: validated.projectId },
@@ -793,7 +794,7 @@ export async function adminAddProjectMember(data: z.infer<typeof adminUpsertMemb
 
 export async function adminUpdateProjectMemberRole(data: z.infer<typeof adminUpdateMemberRoleSchema>) {
   await requireAdminSession();
-  const validated = adminUpdateMemberRoleSchema.parse(data);
+  const validated = parseOrThrow(adminUpdateMemberRoleSchema, data);
 
   const member = await prisma.projectMember.findUnique({
     where: {
@@ -833,7 +834,7 @@ export async function adminUpdateProjectMemberRole(data: z.infer<typeof adminUpd
 
 export async function adminRemoveProjectMember(data: z.infer<typeof adminRemoveMemberSchema>) {
   await requireAdminSession();
-  const validated = adminRemoveMemberSchema.parse(data);
+  const validated = parseOrThrow(adminRemoveMemberSchema, data);
 
   await prisma.projectMember.deleteMany({
     where: {
@@ -850,7 +851,7 @@ export async function adminRemoveProjectMember(data: z.infer<typeof adminRemoveM
 export async function createProject(data: z.infer<typeof createProjectSchema>) {
   const user = await requireTeacherUser();
 
-  const validated = createProjectSchema.parse(data);
+  const validated = parseOrThrow(createProjectSchema, data);
   const project = await prisma.project.create({
     data: {
       title: validated.title,
@@ -1614,7 +1615,7 @@ const leaderUpdateDetailsSchema = z.object({
 export async function updateLeaderProjectDetails(data: z.infer<typeof leaderUpdateDetailsSchema>) {
   const user = await requireStudentUser();
 
-  const validated = leaderUpdateDetailsSchema.parse(data);
+  const validated = parseOrThrow(leaderUpdateDetailsSchema, data);
 
   // Security Check: Ensure the user is actually the LEAD of this project
   const membership = await prisma.projectMember.findUnique({

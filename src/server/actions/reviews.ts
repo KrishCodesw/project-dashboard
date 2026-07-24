@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/coe-guard";
 import { z } from "zod";
+import { parseOrThrow } from "@/lib/zod-utils";
 import { revalidatePath } from "next/cache";
 import { createBulkNotifications } from "@/lib/notifications";
 import { updateProjectCompletion } from "@/lib/completion";
@@ -31,7 +32,7 @@ export async function scheduleReview(data: z.infer<typeof scheduleReviewSchema>)
   const user = await requireRole("TEACHER");
   const userId = user.id;
 
-  const validated = scheduleReviewSchema.parse(data);
+  const validated = parseOrThrow(scheduleReviewSchema, data);
   const review = await prisma.review.create({
     data: {
       projectId: validated.projectId,
@@ -81,7 +82,7 @@ export async function scheduleReview(data: z.infer<typeof scheduleReviewSchema>)
 export async function conductReview(data: z.infer<typeof conductReviewSchema>) {
   await requireRole("TEACHER");
 
-  const validated = conductReviewSchema.parse(data);
+  const validated = parseOrThrow(conductReviewSchema, data);
 
   const review = await prisma.review.update({
     where: { id: validated.reviewId },

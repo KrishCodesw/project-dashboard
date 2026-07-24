@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/coe-guard";
 import { z } from "zod";
+import { parseOrThrow } from "@/lib/zod-utils";
 import { revalidatePath } from "next/cache";
 import type { PaginatedResult } from "@/lib/pagination";
 import { buildPagination } from "@/lib/pagination";
@@ -18,7 +19,7 @@ const createUserSchema = z.object({
 export async function createUser(data: z.infer<typeof createUserSchema>) {
   await requireRole("ADMIN");
 
-  const validated = createUserSchema.parse(data);
+  const validated = parseOrThrow(createUserSchema, data);
   const existing = await prisma.user.findUnique({ where: { email: validated.email } });
   if (existing) throw new Error("Email already exists");
 

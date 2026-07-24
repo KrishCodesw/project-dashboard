@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireCoeUser, requireRole } from "@/lib/coe-guard";
 import { z } from "zod";
+import { parseOrThrow } from "@/lib/zod-utils";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "@/lib/notifications";
 import { updateProjectCompletion } from "@/lib/completion";
@@ -20,7 +21,7 @@ const createTaskSchema = z.object({
 export async function createTask(data: z.infer<typeof createTaskSchema>) {
   await requireRole("TEACHER");
 
-  const validated = createTaskSchema.parse(data);
+  const validated = parseOrThrow(createTaskSchema, data);
 
   const maxOrder = await prisma.task.findFirst({
     where: { projectId: validated.projectId, parentTaskId: validated.parentTaskId || null },

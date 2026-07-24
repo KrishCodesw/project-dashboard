@@ -7,6 +7,7 @@ import { createBulkNotifications, createNotification } from "@/lib/notifications
 import { revalidatePath } from "next/cache";
 import { ShowcaseAssetKind, ShowcaseProjectDomain, ShowcaseProjectStatus } from "@prisma/client";
 import { z } from "zod";
+import { parseOrThrow } from "@/lib/zod-utils";
 
 const teamMemberSchema = z.object({
   name: z.string().min(2),
@@ -266,7 +267,7 @@ export async function createProject(data: z.infer<typeof showcasePayloadSchema>)
   assertCreatorRole(user);
   const userId = requireUserId(user);
 
-  const validated = showcasePayloadSchema.parse(data);
+  const validated = parseOrThrow(showcasePayloadSchema, data);
 
   const project = await prisma.showcaseProject.create({
     data: {
@@ -338,7 +339,7 @@ export async function updateProject(projectId: string, data: z.infer<typeof upda
   assertCreatorRole(user);
   const userId = requireUserId(user);
 
-  const validated = updateSchema.parse(data);
+  const validated = parseOrThrow(updateSchema, data);
 
   const project = await prisma.showcaseProject.findUnique({ where: { id: projectId } });
   if (!project || project.ownerId !== userId) {
@@ -654,7 +655,7 @@ export async function addFeedback(projectId: string, versionId: string, data: z.
   assertAdmin(user);
   const userId = requireUserId(user);
 
-  const validated = feedbackSchema.parse(data);
+  const validated = parseOrThrow(feedbackSchema, data);
   const project = await prisma.showcaseProject.findUnique({ where: { id: projectId } });
   if (!project) throw new Error("Project not found");
 
