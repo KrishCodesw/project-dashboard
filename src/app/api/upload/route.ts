@@ -18,12 +18,20 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
-    const projectId = formData.get("projectId") as string | null;
+    const projectIdRaw = formData.get("projectId") as string | null;
+    let projectId: string | null = null;
+    if (projectIdRaw !== null && projectIdRaw !== "") {
+      if (projectIdRaw === "__major-project-signed__") {
+        projectId = null; // special marker for no project
+      } else {
+        projectId = projectIdRaw;
+      }
+    }
     const category = (formData.get("category") as string | null) ?? "OTHER";
     const taskId = (formData.get("taskId") as string | null) ?? undefined;
 
-    if (!file || !projectId) {
-      return NextResponse.json({ error: "Missing file or projectId" }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ error: "Missing file" }, { status: 400 });
     }
 
     // Server-side file size validation
@@ -35,7 +43,9 @@ export async function POST(req: NextRequest) {
     }
 
     const mimeType = file.type || "application/octet-stream";
-    const s3Key = buildS3Key(projectId, category, file.name);
+    const timestamp = Date.now();
+    const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const s3Key = `uploads/${projectId ? `${projectId}/` : ""}${category.toLowerCase()}/${timestamp}-${sanitized}`;
     const buffer = Buffer.from(await file.arrayBuffer());
 
     await s3Client.send(

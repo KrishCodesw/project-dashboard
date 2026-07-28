@@ -53,6 +53,7 @@ enum FileCategory {
   PRESENTATION
   CODE
   DATASET
+  NOTICE
   OTHER
 }
 
@@ -411,7 +412,7 @@ model ReviewCriteria {
 
 model ProjectFile {
   id         String       @id @default(cuid())
-  projectId  String
+  projectId  String?
   taskId     String?
   uploadedBy String
   fileName   String

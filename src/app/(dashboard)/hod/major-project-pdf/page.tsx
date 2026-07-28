@@ -26,7 +26,7 @@ export default function MajorProjectPDFPage() {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("category", "REPORT");
-    fd.append("projectId", "__major-project-signed__");
+    fd.append("projectId", ""); // empty string -> null in API (no project)
 
     try {
       const timer = setInterval(() => setProgress((p) => Math.min(p + 10, 95)), 200);
@@ -61,7 +61,7 @@ export default function MajorProjectPDFPage() {
           <label className="flex flex-col items-center gap-3 rounded-[2px] border-2 border-dashed border-border hover:border-primary/50 bg-background hover:bg-muted/30 p-10 cursor-pointer transition-colors">
             <Upload className="h-8 w-8 text-muted-foreground/50" />
             <div className="text-center">
-              <p className="text-sm font-medium">Click to select or drag &amp; drop</p>
+              <p className="text-sm font-medium">Click to select or drag & drop</p>
               <p className="text-xs text-muted-foreground">PDF only · max {MAX_MB} MB</p>
             </div>
             <input ref={inputRef} type="file" accept=".pdf,application/pdf" onChange={handleChange} className="hidden" />
