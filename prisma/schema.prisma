@@ -423,7 +423,7 @@ model ProjectFile {
   category   FileCategory @default(OTHER)
   uploadedAt DateTime     @default(now())
 
-  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project  Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   task     Task?   @relation("TaskFiles", fields: [taskId], references: [id])
   uploader User    @relation(fields: [uploadedBy], references: [id])
 
