@@ -80,7 +80,7 @@ export function NoticeForm({ department }: { department: string }) {
         setAttachmentName(null);
         setUploadError(null);
         // reset file input
-        const fileInput = e.target.querySelector('input[type="file"]') as HTMLInputElement | null;
+        const fileInput = (e.target as HTMLFormElement).querySelector('input[type="file"]') as HTMLInputElement | null;
         if (fileInput) fileInput.value = "";
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to send notice.");
