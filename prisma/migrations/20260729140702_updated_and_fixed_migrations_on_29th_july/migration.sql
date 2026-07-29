@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `project_files` MODIFY `projectId` VARCHAR(191) NULL,
+    MODIFY `category` ENUM('REPORT', 'PRESENTATION', 'CODE', 'DATASET', 'NOTICE', 'OTHER') NOT NULL DEFAULT 'OTHER';
