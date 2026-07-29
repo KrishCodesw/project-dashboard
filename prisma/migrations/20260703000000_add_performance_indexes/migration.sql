@@ -7,8 +7,8 @@
 -- 3. projects (title) — admin and teacher project search by title
 -- 4. projects (department, status) — department-based filtering with status
 
-CREATE INDEX IF NOT EXISTS idx_user_role_active ON users (role, isActive);
+CREATE INDEX idx_user_role_active ON users (role, isActive);
 
-CREATE INDEX IF NOT EXISTS idx_project_teacher_status ON projects (teacherId, status);
-CREATE INDEX IF NOT EXISTS idx_project_title ON projects (title);
-CREATE INDEX IF NOT EXISTS idx_project_dept_status ON projects (department, status);
+CREATE INDEX idx_project_teacher_status ON projects (teacherId, status);
+CREATE INDEX idx_project_title ON projects (title);
+CREATE INDEX idx_project_dept_status ON projects (department, status);
