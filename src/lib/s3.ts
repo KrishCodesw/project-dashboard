@@ -89,13 +89,14 @@ if (!BUCKET) {
 }
 
 export function buildS3Key(
-  projectId: string,
+  projectId: string | null,
   category: string,
   filename: string
 ): string {
   const timestamp = Date.now();
   const sanitized = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  return `uploads/${projectId}/${category.toLowerCase()}/${timestamp}-${sanitized}`;
+  const prefix = projectId ? `${projectId}/` : "";
+  return `uploads/${prefix}${category.toLowerCase()}/${timestamp}-${sanitized}`;
 }
 
 export async function generatePresignedUploadUrl(

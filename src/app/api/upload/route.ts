@@ -43,9 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     const mimeType = file.type || "application/octet-stream";
-    const timestamp = Date.now();
-    const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const s3Key = `uploads/${projectId ? `${projectId}/` : ""}${category.toLowerCase()}/${timestamp}-${sanitized}`;
+    const s3Key = buildS3Key(projectId, category, file.name);
     const buffer = Buffer.from(await file.arrayBuffer());
 
     await s3Client.send(
