@@ -125,13 +125,16 @@ export function NoticeForm({ department }: { department: string }) {
         {attachmentName && (
           <div className="flex items-center mt-2">
             <span className="mr-2 text-sm text-muted-foreground">Attached:</span>
-            <a href="#" className="text-sm text-primary underline mr-2">
+            <span className="text-sm text-primary underline mr-2">
               {attachmentName}
-            </a>
+            </span>
             <button
               onClick={() => {
                 setAttachmentId(null);
                 setAttachmentName(null);
+                // reset file input
+                const fileInput = document.getElementById("attachment") as HTMLInputElement | null;
+                if (fileInput) fileInput.value = "";
               }}
               className="text-xs text-red-600 hover:underline"
             >

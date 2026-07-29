@@ -40,7 +40,7 @@ export async function sendNoticeToStudents(
     try {
       const file = await prisma.projectFile.findUnique({
         where: { id: attachmentId },
-        select: { id: true, fileName: true, s3Key: true },
+        select: { fileName: true },
       });
       if (file) {
         attachmentUrl = await getDownloadUrl(attachmentId);
