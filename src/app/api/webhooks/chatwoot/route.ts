@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createNotification } from "@/lib/notifications";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, wrapEmailBody } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { SUPPORT_ENABLED } from "@/lib/support/feature-flag";
 import { chatwootConfig } from "@/lib/chatwoot/config";
@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // 4. Only handle admin replies (message.created, outgoing)
-  if (payload.event !== "message.created") return NextResponse.json({ ok: true });
+  // 4. Only handle admin replies (message_created, outgoing)
+  if (payload.event !== "message_created") return NextResponse.json({ ok: true });
   if (payload.message_type === "incoming") return NextResponse.json({ ok: true });
   if (!payload.conversation?.contact_id) return NextResponse.json({ ok: true });
 
@@ -84,13 +84,16 @@ export async function POST(req: NextRequest) {
     sendEmail({
       to: platformUser.email,
       subject: "[Support] New reply on your ticket",
-      html: `
-        <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-          <h2>New Reply on Your Ticket</h2>
-          <p>An admin replied to your support ticket.</p>
-          <p><a href="${ticketLink}">View in dashboard</a></p>
+      html: wrapEmailBody(`
+        <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">New Reply on Your Ticket</h2>
+        <p style="color:#434651;font-size:14px;margin:0 0 4px;">An admin replied to your support ticket:</p>
+        <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:16px;margin:16px 0;">
+          <p style="margin:0;color:#002155;">${payload.content?.text ?? "An admin replied to your ticket."}</p>
         </div>
-      `,
+        <div style="text-align:center;margin:20px 0;">
+          <a href="${ticketLink}" style="background:#002155;color:#ffffff;padding:12px 28px;text-decoration:none;font-weight:bold;font-size:13px;letter-spacing:1px;display:inline-block;">VIEW TICKET</a>
+        </div>
+      `),
     }).catch(() => {});
   } catch (err) {
     console.error("[Chatwoot Webhook] Error processing message:", err);
