@@ -7,6 +7,7 @@ import { parseOrThrow } from "@/lib/zod-utils";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "@/lib/notifications";
 import { updateProjectCompletion } from "@/lib/completion";
+import { sendTaskAssignedEmail } from "@/lib/email";
 
 const createTaskSchema = z.object({
   projectId: z.string(),
@@ -43,10 +44,16 @@ export async function createTask(data: z.infer<typeof createTaskSchema>) {
   });
 
   if (validated.assignedToId) {
-    const project = await prisma.project.findUnique({
-      where: { id: validated.projectId },
-      select: { title: true },
-    });
+    const [project, assignee] = await Promise.all([
+      prisma.project.findUnique({
+        where: { id: validated.projectId },
+        select: { title: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: validated.assignedToId },
+        select: { email: true },
+      }),
+    ]);
     await createNotification({
       userId: validated.assignedToId,
       type: "TASK_ASSIGNED",
@@ -54,6 +61,14 @@ export async function createTask(data: z.infer<typeof createTaskSchema>) {
       message: `You have been assigned "${validated.title}" in ${project?.title}`,
       link: `/student/projects/${validated.projectId}/tasks`,
     });
+    if (assignee?.email) {
+      await sendTaskAssignedEmail(
+        assignee.email,
+        project?.title ?? "your project",
+        validated.title,
+        validated.dueDate ? new Date(validated.dueDate) : null
+      );
+    }
   }
 
   revalidatePath(`/teacher/projects/${validated.projectId}/tasks`);
@@ -114,6 +129,25 @@ export async function updateTask(
 
   if (data.status === "DONE") {
     await updateProjectCompletion(task.projectId);
+  }
+
+  if (
+    role === "TEACHER" &&
+    data.assignedToId &&
+    data.assignedToId !== task.assignedToId
+  ) {
+    const assignee = await prisma.user.findUnique({
+      where: { id: data.assignedToId },
+      select: { email: true },
+    });
+    if (assignee?.email) {
+      await sendTaskAssignedEmail(
+        assignee.email,
+        task.project.title,
+        data.title ?? task.title,
+        data.dueDate !== undefined ? (data.dueDate ? new Date(data.dueDate) : null) : task.dueDate
+      );
+    }
   }
 
   revalidatePath(`/teacher/projects/${task.projectId}/tasks`);

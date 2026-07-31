@@ -176,7 +176,33 @@ export async function sendFeedbackEmail(
         <p style="margin:0 0 6px;color:#434651;"><strong>Score:</strong> ${score}/10</p>
         <p style="margin:0;color:#434651;"><strong>Feedback:</strong> ${feedback}</p>
       </div>
-      <p style="color:#434651;font-size:14px;margin:0;">Log in to your dashboard to view the complete review details.</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/student/projects" style="background:#002155;color:#ffffff;padding:12px 32px;text-decoration:none;font-weight:bold;font-size:14px;letter-spacing:1px;display:inline-block;">VIEW IN DASHBOARD</a>
+      </div>
+    `),
+  });
+}
+
+export async function sendTaskAssignedEmail(
+  studentEmail: string,
+  projectTitle: string,
+  taskTitle: string,
+  dueDate: Date | null
+) {
+  return sendEmail({
+    to: studentEmail,
+    subject: `New Task Assigned: ${taskTitle}`,
+    html: wrapEmailBody(`
+      <h2 style="color:#002155;margin:0 0 8px;font-family:'Helvetica Neue',Arial,sans-serif;">New Task Assigned</h2>
+      <p style="color:#434651;font-size:14px;margin:0 0 4px;">A new task has been assigned to you:</p>
+      <div style="background:#f5f4f0;border-left:4px solid #F7941D;padding:16px;margin:16px 0;">
+        <p style="margin:0 0 6px;color:#002155;"><strong>Project:</strong> ${projectTitle}</p>
+        <p style="margin:0 0 6px;color:#434651;"><strong>Task:</strong> ${taskTitle}</p>
+        ${dueDate ? `<p style="margin:0;color:#434651;"><strong>Due:</strong> ${dueDate.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>` : ""}
+      </div>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/student/projects" style="background:#002155;color:#ffffff;padding:12px 32px;text-decoration:none;font-weight:bold;font-size:14px;letter-spacing:1px;display:inline-block;">VIEW IN DASHBOARD</a>
+      </div>
     `),
   });
 }
