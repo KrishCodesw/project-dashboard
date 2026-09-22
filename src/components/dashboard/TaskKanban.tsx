@@ -362,7 +362,7 @@ export function TaskKanban({
                 <div className="flex items-center justify-between p-3">
                   <h3 className="text-sm font-semibold">{column.title}</h3>
                   <Badge variant="secondary" className="text-xs">
-                    {columnTasks.length}
+                    {columnTasks.length + columnWeeklyTasks.length}
                   </Badge>
                 </div>
                 <SortableContext

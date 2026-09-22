@@ -261,6 +261,7 @@ model Project {
   tags               ProjectTag[]
   pendingAssignments PendingProjectAssignment[]
   publications       Publication[]
+  weeklySubmissions  WeeklyTaskSubmission[]
 
   @@index([teacherId])
   @@index([status])
@@ -764,6 +765,7 @@ model WeeklyTaskSubmission {
   reviewedAt  DateTime?
 
   milestone     WeeklyMilestone      @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  project       Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   evidenceLinks WeeklyEvidenceLink[]
   syncMeetings  WeeklySyncMeeting[]
 

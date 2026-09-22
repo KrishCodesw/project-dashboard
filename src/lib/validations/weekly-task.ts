@@ -19,7 +19,7 @@ export const StudentSubmissionSchema = z.object({
       url: z.string().url("Must be a valid URL"),
       type: z.enum(["GITHUB", "DRIVE", "DESIGN", "DOCUMENT"]),
     })
-  ).min(1, "At least one evidence attachment or link is required"),
+  ).optional(), // made optional (can be empty)
 });
 
 export const GuideReviewSchema = z.object({

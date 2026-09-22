@@ -20,39 +20,7 @@ import {
   updateWeeklyMilestone,
   deleteWeeklyMilestone,
 } from "@/server/actions/weekly-milestones";
-import { CreateMilestoneSchema } from "@/lib/validations/weekly-task";
-import type { z } from "zod";
-
-type CreateMilestoneInput = z.infer<typeof CreateMilestoneSchema>;
-
-/* ------------------------------------------------------------------ */
-/* Date Helpers                                                       */
-/* ------------------------------------------------------------------ */
-function formatDateForInput(
-  dateInput: Date | string | null | undefined,
-): string {
-  if (!dateInput) return "";
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return "";
-  const year = d.getUTCFullYear();
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function formatDateForDisplay(
-  dateInput: Date | string | null | undefined,
-): string {
-  if (!dateInput) return "";
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-}
+import type { CreateMilestoneSchema } from "@/lib/validations/weekly-task";
 
 /* ------------------------------------------------------------------ */
 /* Helper: Reusable Checklist Input                                   */
@@ -112,7 +80,7 @@ function ChecklistInput({
         <div className="flex flex-wrap gap-1.5 mt-2">
           {items.map((text, i) => (
             <span
-              key={`${text}-${i}`}
+              key={i}
               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground"
             >
               {text}
@@ -149,9 +117,7 @@ export default function WeeklyMilestonesAdminPage() {
   const [checklistItems, setChecklistItems] = useState<string[]>([]);
 
   // Edit state
-  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(
-    null,
-  );
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [editWeekNumber, setEditWeekNumber] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -180,13 +146,9 @@ export default function WeeklyMilestonesAdminPage() {
         setEditWeekNumber(target.weekNumber.toString());
         setEditTitle(target.title);
         setEditDescription(target.description ?? "");
-        setEditStartDate(formatDateForInput(target.startDate));
-        setEditDueDate(formatDateForInput(target.dueDate));
-        setEditChecklistItems(
-          target.checklists.map((c: any) =>
-            typeof c === "string" ? c : c.text,
-          ),
-        );
+        setEditStartDate(new Date(target.startDate).toISOString().split("T")[0]);
+        setEditDueDate(new Date(target.dueDate).toISOString().split("T")[0]);
+        setEditChecklistItems(target.checklists.map((c) => c.text));
       }
     }
   }, [editingMilestoneId, milestones]);
@@ -212,23 +174,14 @@ export default function WeeklyMilestonesAdminPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
     if (checklistItems.length === 0) {
       toast.error("Please add at least one checklist item");
-      return;
-    }
-    if (!startDate || !dueDate) {
-      toast.error("Please provide both start and due dates");
-      return;
-    }
-    if (new Date(dueDate) < new Date(startDate)) {
-      toast.error("Due date must be on or after the start date");
       return;
     }
     setIsSubmitting(true);
 
     try {
-      const payload: CreateMilestoneInput = {
+      const payload: CreateMilestoneSchema = {
         weekNumber: Number(weekNumber),
         title,
         description: description || undefined,
@@ -240,15 +193,13 @@ export default function WeeklyMilestonesAdminPage() {
 
       const result = await assignWeeklyMilestoneToAllProjects(payload);
       toast.success(
-        `Weekly milestone "${result.milestone.title}" assigned to ${result.createdSubmissionsCount} projects.`,
+        `Weekly milestone "${result.milestone.title}" assigned to ${result.createdSubmissionsCount} projects.`
       );
       resetCreateForm();
-      await queryClient.invalidateQueries({
-        queryKey: ["admin", "weekly-milestones"],
-      });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "weekly-milestones"] });
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.message ?? "Failed to create weekly milestone");
+      toast.error(err.message ?? "Failed to create weekly milestone");
     } finally {
       setIsSubmitting(false);
     }
@@ -256,18 +207,9 @@ export default function WeeklyMilestonesAdminPage() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isEditSubmitting) return;
     if (!editingMilestoneId) return;
     if (editChecklistItems.length === 0) {
       toast.error("Please add at least one checklist item");
-      return;
-    }
-    if (!editStartDate || !editDueDate) {
-      toast.error("Please provide both start and due dates");
-      return;
-    }
-    if (new Date(editDueDate) < new Date(editStartDate)) {
-      toast.error("Due date must be on or after the start date");
       return;
     }
     setIsEditSubmitting(true);
@@ -284,15 +226,13 @@ export default function WeeklyMilestonesAdminPage() {
         isBackdated: false,
       };
 
-      await updateWeeklyMilestone(payload);
+      await updateWeeklyMilestone(payload as any);
       toast.success(`Weekly milestone "${editTitle}" updated.`);
       resetEditForm();
-      await queryClient.invalidateQueries({
-        queryKey: ["admin", "weekly-milestones"],
-      });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "weekly-milestones"] });
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.message ?? "Failed to update weekly milestone");
+      toast.error(err.message ?? "Failed to update weekly milestone");
     } finally {
       setIsEditSubmitting(false);
     }
@@ -302,12 +242,10 @@ export default function WeeklyMilestonesAdminPage() {
     try {
       await deleteWeeklyMilestone(id);
       toast.success("Weekly milestone deleted.");
-      await queryClient.invalidateQueries({
-        queryKey: ["admin", "weekly-milestones"],
-      });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "weekly-milestones"] });
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.message ?? "Failed to delete weekly milestone");
+      toast.error(err.message ?? "Failed to delete weekly milestone");
     }
   };
 
@@ -316,8 +254,8 @@ export default function WeeklyMilestonesAdminPage() {
       <div>
         <h1 className="text-2xl font-bold">Create Weekly Milestone (Admin)</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Define a global weekly milestone; the system will create a submission
-          card for <strong>every</strong> project automatically.
+          Define a global weekly milestone; the system will create a submission card for{" "}
+          <strong>every</strong> project automatically.
         </p>
       </div>
 
@@ -325,8 +263,7 @@ export default function WeeklyMilestonesAdminPage() {
         <CardHeader>
           <CardTitle>Weekly Milestone Details</CardTitle>
           <CardDescription>
-            Fill in the fields below to create a milestone assigned to all
-            projects.
+            Fill in the fields below to create a milestone assigned to all projects.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -396,11 +333,7 @@ export default function WeeklyMilestonesAdminPage() {
               disabled={isSubmitting}
             />
 
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full sm:w-auto"
-            >
+            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
               {isSubmitting ? "Creating…" : "Create Weekly Milestone"}
             </Button>
           </form>
@@ -427,13 +360,10 @@ export default function WeeklyMilestonesAdminPage() {
               </p>
             ) : (
               <div className="grid gap-4">
-                {milestones.map((m: any) => {
+                {milestones.map((m) => {
                   const isEditing = editingMilestoneId === m.id;
                   return (
-                    <Card
-                      key={m.id}
-                      className="hover:shadow-md transition-shadow"
-                    >
+                    <Card key={m.id} className="hover:shadow-md transition-shadow">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-lg font-semibold flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -483,7 +413,7 @@ export default function WeeklyMilestonesAdminPage() {
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
                                     strokeWidth="2"
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H9a1 1 0 00-1 1v3M4 7h16"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1v0c-.596 0-1.06.374-1.22.882l-1.48 7.382a2 2 0 00.62 1.562L12.18 11h4a1 1 0 001-1v0z"
                                   />
                                 </svg>
                               </Button>
@@ -493,10 +423,7 @@ export default function WeeklyMilestonesAdminPage() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {isEditing ? (
-                          <form
-                            onSubmit={handleEditSubmit}
-                            className="space-y-4"
-                          >
+                          <form onSubmit={handleEditSubmit} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                               <div className="space-y-2">
                                 <Label>Week Number</Label>
@@ -504,9 +431,7 @@ export default function WeeklyMilestonesAdminPage() {
                                   type="number"
                                   min={1}
                                   value={editWeekNumber}
-                                  onChange={(e) =>
-                                    setEditWeekNumber(e.target.value)
-                                  }
+                                  onChange={(e) => setEditWeekNumber(e.target.value)}
                                   required
                                 />
                               </div>
@@ -525,9 +450,7 @@ export default function WeeklyMilestonesAdminPage() {
                               <Label>Description (optional)</Label>
                               <Textarea
                                 value={editDescription}
-                                onChange={(e) =>
-                                  setEditDescription(e.target.value)
-                                }
+                                onChange={(e) => setEditDescription(e.target.value)}
                                 rows={3}
                               />
                             </div>
@@ -538,9 +461,7 @@ export default function WeeklyMilestonesAdminPage() {
                                 <Input
                                   type="date"
                                   value={editStartDate}
-                                  onChange={(e) =>
-                                    setEditStartDate(e.target.value)
-                                  }
+                                  onChange={(e) => setEditStartDate(e.target.value)}
                                   required
                                 />
                               </div>
@@ -549,9 +470,7 @@ export default function WeeklyMilestonesAdminPage() {
                                 <Input
                                   type="date"
                                   value={editDueDate}
-                                  onChange={(e) =>
-                                    setEditDueDate(e.target.value)
-                                  }
+                                  onChange={(e) => setEditDueDate(e.target.value)}
                                   required
                                 />
                               </div>
@@ -586,28 +505,22 @@ export default function WeeklyMilestonesAdminPage() {
                             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                               <span>
                                 <strong className="font-medium">Start:</strong>{" "}
-                                {formatDateForDisplay(m.startDate)}
+                                {new Date(m.startDate).toLocaleDateString()}
                               </span>
                               <span>
                                 <strong className="font-medium">Due:</strong>{" "}
-                                {formatDateForDisplay(m.dueDate)}
+                                {new Date(m.dueDate).toLocaleDateString()}
                               </span>
                               <span>
-                                <strong className="font-medium">
-                                  Deliverables:
-                                </strong>{" "}
-                                {m.checklists?.length ?? 0} item
-                                {m.checklists?.length !== 1 ? "s" : ""}
+                                <strong className="font-medium">Deliverables:</strong>{" "}
+                                {m.checklists.length} item
+                                {m.checklists.length !== 1 ? "s" : ""}
                               </span>
                             </div>
-                            {m.checklists && m.checklists.length > 0 && (
+                            {m.checklists.length > 0 && (
                               <ul className="list-disc list-inside text-xs text-muted-foreground space-y-0.5">
-                                {m.checklists.map((item: any, idx: number) => (
-                                  <li key={item.id ?? idx}>
-                                    {typeof item === "string"
-                                      ? item
-                                      : item.text}
-                                  </li>
+                                {m.checklists.map((item, idx) => (
+                                  <li key={idx}>{item.text}</li>
                                 ))}
                               </ul>
                             )}
@@ -626,18 +539,13 @@ export default function WeeklyMilestonesAdminPage() {
         {deleteConfirmId !== null && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="bg-background text-popover-foreground border rounded-lg p-6 max-w-sm w-full space-y-4 shadow-lg">
-              <h3 className="text-lg font-semibold">
-                Delete Weekly Milestone?
-              </h3>
+              <h3 className="text-lg font-semibold">Delete Weekly Milestone?</h3>
               <p className="text-sm text-muted-foreground">
-                This action cannot be undone. All associated submissions,
-                evidence links, and meetings will be deleted.
+                This action cannot be undone. All associated submissions, evidence
+                links, and meetings will be deleted.
               </p>
               <div className="flex justify-end space-x-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setDeleteConfirmId(null)}
-                >
+                <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
                   Cancel
                 </Button>
                 <Button

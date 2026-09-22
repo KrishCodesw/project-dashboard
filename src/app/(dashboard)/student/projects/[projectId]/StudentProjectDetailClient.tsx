@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { LeaderDetailsForm } from "@/components/dashboard/LeaderDetailsForm";
 import { useProject } from "@/hooks/useProjects";
@@ -30,6 +31,18 @@ import { getProjectMilestones } from "@/server/actions/milestones";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { submitWeeklyTaskWorkLog } from "@/server/actions/student-weekly-tasks";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-zinc-500/20 text-zinc-400",
@@ -50,17 +63,28 @@ export default function StudentProjectDetailClient({
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const { data: project, isLoading } = useProject(projectId);
-    const [activeTab, setActiveTab] = React.useState("tasks");
-    React.useEffect(() => {
-      const allowedTabs = new Set([
-        "tasks",
-        "milestones",
-        "reviews",
-        "publications",
-        "files",
-      ]);
-      setActiveTab(allowedTabs.has(tabParam || "") ? (tabParam as string) : "tasks");
-    }, [tabParam]);
+  const [activeTab, setActiveTab] = React.useState("tasks");
+
+  React.useEffect(() => {
+    const allowedTabs = new Set([
+      "tasks",
+      "milestones",
+      "reviews",
+      "publications",
+      "files",
+    ]);
+    setActiveTab(
+      allowedTabs.has(tabParam || "") ? (tabParam as string) : "tasks",
+    );
+  }, [tabParam]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [workLog, setWorkLog] = useState<string>("");
+  const [evidenceLinks, setEvidenceLinks] = useState<
+    Array<{ title: string; url: string; type: "GITHUB" | "DRIVE" | "DESIGN" | "DOCUMENT" }>
+  >([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { data: tasks } = useProjectTasks(projectId);
   const updateTask = useUpdateTask();
   const queryClient = useQueryClient();
@@ -106,6 +130,14 @@ export default function StudentProjectDetailClient({
     }
   }
 
+  function handleWeeklyTaskClick(submissionId: string) {
+    setSubmissionId(submissionId);
+    // Reset form
+    setWorkLog("");
+    setEvidenceLinks([]);
+    setModalOpen(true);
+  }
+
   async function handleDownload(fileId: string, filename: string) {
     try {
       const url = await getDownloadUrl(fileId);
@@ -117,6 +149,26 @@ export default function StudentProjectDetailClient({
       toast.error("Failed to download file");
     }
   }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!submissionId) return;
+
+    setIsSubmitting(true);
+    try {
+      await submitWeeklyTaskWorkLog({
+        submissionId,
+        workLog,
+        evidenceLinks,
+      });
+      toast.success("Work log submitted");
+      setModalOpen(false);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message ?? "Failed to submit");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -190,7 +242,7 @@ export default function StudentProjectDetailClient({
         </TabsList>
 
         <TabsContent value="tasks" className="mt-6">
-          <TaskKanban projectId={projectId} tasks={tasks ?? []} onTaskUpdate={handleTaskUpdate} />
+          <TaskKanban projectId={projectId} tasks={tasks ?? []} onTaskUpdate={handleTaskUpdate} onWeeklyTaskClick={handleWeeklyTaskClick} />
         </TabsContent>
 
         <TabsContent value="milestones" className="mt-6">
@@ -244,6 +296,61 @@ export default function StudentProjectDetailClient({
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit weekly task work</DialogTitle>
+            <DialogDescription>
+              Add a work log and, optionally, a link to supporting evidence.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="work-log">Work log</Label>
+              <Textarea
+                id="work-log"
+                value={workLog}
+                onChange={(event) => setWorkLog(event.target.value)}
+                placeholder="Describe the work completed this week..."
+                required
+                minLength={10}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="evidence-url">Evidence URL (optional)</Label>
+              <Input
+                id="evidence-url"
+                type="url"
+                value={evidenceLinks[0]?.url ?? ""}
+                onChange={(event) => {
+                  const url = event.target.value;
+                  setEvidenceLinks(
+                    url
+                      ? [
+                          {
+                            title: evidenceLinks[0]?.title || "Weekly task evidence",
+                            url,
+                            type: evidenceLinks[0]?.type || "DOCUMENT",
+                          },
+                        ]
+                      : [],
+                  );
+                }}
+                placeholder="https://..."
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Submitting..." : "Submit work log"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

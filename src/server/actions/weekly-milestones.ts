@@ -79,17 +79,99 @@ export async function assignWeeklyMilestoneToAllProjects(
     }));
 
   // Create submissions in bulk
-  let createdSubmissions = [];
+  let createdSubmissionsCount = 0;
   if (projectsToCreate.length > 0) {
-    createdSubmissions = await prisma.weeklyTaskSubmission.createManyAndReturn({
+    const result = await prisma.weeklyTaskSubmission.createMany({
       data: projectsToCreate,
     });
+    createdSubmissionsCount = result.count;
   }
 
   return {
     milestone,
-    createdSubmissionsCount: createdSubmissions.length,
+    createdSubmissionsCount,
     totalProjects: projects.length,
     skippedProjects: existingSubmissions.length,
   };
 }
+
+/**
+ * Fetch all weekly milestones with their checklist items.
+ * Admin-only.
+ */
+export async function getAllWeeklyMilestones() {
+  const user = await requireRole("ADMIN");
+  return await prisma.weeklyMilestone.findMany({
+    include: {
+      checklists: {
+        select: {
+          text: true,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
+    orderBy: {
+      weekNumber: "asc",
+    },
+  });
+}
+
+/**
+ * Update an existing weekly milestone.
+ * Admin-only.
+ */
+export async function updateWeeklyMilestone(
+  data: z.infer<typeof UpdateMilestoneSchema>
+) {
+  const user = await requireRole("ADMIN");
+  const validated = UpdateMilestoneSchema.parse(data);
+
+  // Upsert the milestone (update)
+  const milestone = await prisma.weeklyMilestone.update({
+    where: { id: validated.id },
+    data: {
+      weekNumber: validated.weekNumber,
+      title: validated.title,
+      description: validated.description ?? undefined,
+      startDate: validated.startDate,
+      dueDate: validated.dueDate,
+      isBackdated: validated.isBackdated ?? false,
+    },
+  });
+
+  // Replace checklist items
+  await prisma.milestoneChecklistItem.deleteMany({
+    where: { weeklyMilestoneId: milestone.id },
+  });
+
+  const checklistItems = validated.checklists.map((text) => ({
+    text,
+    weeklyMilestoneId: milestone.id,
+  }));
+
+  await prisma.milestoneChecklistItem.createMany({
+    data: checklistItems,
+  });
+
+  return milestone;
+}
+
+/**
+ * Delete a weekly milestone and all related data (checklist, submissions, evidence, meetings).
+ * Admin-only.
+ */
+export async function deleteWeeklyMilestone(id: string) {
+  const user = await requireRole("ADMIN");
+  await prisma.weeklyMilestone.delete({
+    where: { id },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Zod schema for update (same as create but with id)                 */
+/* ------------------------------------------------------------------ */
+const UpdateMilestoneSchema = CreateMilestoneSchema.extend({
+  id: z.string().cuid(),
+});
