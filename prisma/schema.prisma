@@ -182,20 +182,20 @@ enum IndexingType {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         Role
-  avatarUrl    String?
-  department   String?
-  rollNumber   String?
-  uid          String?
-  isHod        Boolean  @default(false)
-  isGuide      Boolean  @default(false)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          Role
+  avatarUrl     String?
+  department    String?
+  rollNumber    String?
+  uid           String?
+  isHod         Boolean   @default(false)
+  isGuide       Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   lastVisitedAt DateTime?
 
   // Relations
@@ -213,14 +213,14 @@ model User {
   publicationsApproved  Publication[]              @relation("PublicationApprovedBy")
   departmentConfigs     DepartmentConfiguration[]
   guideInvitationsSent  FacultyGuideInvitation[]
-  departmentGuides      DepartmentGuide[]              @relation("DepartmentGuideMember")
-  departmentGuidesAdded DepartmentGuide[]              @relation("DepartmentGuideAddedBy")
+  departmentGuides      DepartmentGuide[]          @relation("DepartmentGuideMember")
+  departmentGuidesAdded DepartmentGuide[]          @relation("DepartmentGuideAddedBy")
   workLogs              FacultyWorkLog[]
 
   @@index([uid])
   @@index([role, uid])
-  @@map("users")
   @@index([role, isActive])
+  @@map("users")
 }
 
 model Project {
@@ -271,19 +271,19 @@ model Project {
 }
 
 model PendingProjectAssignment {
-  id          String     @id @default(cuid())
-  projectId   String
-  email       String
-  name        String?
-  memberRole  MemberRole @default(MEMBER)
-  invitedById String
-  status      String     @default("PENDING")
+  id                  String          @id @default(cuid())
+  projectId           String
+  email               String
+  name                String?
+  memberRole          MemberRole      @default(MEMBER)
+  invitedById         String
+  status              String          @default("PENDING")
   deliveryStatus      DeliveryStatus?
-  bounceDiagnosticRaw String?  @db.Text
+  bounceDiagnosticRaw String?         @db.Text
   bounceReason        String?
   lastBounceAt        DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   invitedBy User    @relation("PendingAssignmentInviter", fields: [invitedById], references: [id])
@@ -424,8 +424,8 @@ model ProjectFile {
   uploadedAt DateTime     @default(now())
 
   project  Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  task     Task?   @relation("TaskFiles", fields: [taskId], references: [id])
-  uploader User    @relation(fields: [uploadedBy], references: [id])
+  task     Task?    @relation("TaskFiles", fields: [taskId], references: [id])
+  uploader User     @relation(fields: [uploadedBy], references: [id])
 
   @@index([projectId])
   @@index([taskId])
@@ -642,18 +642,18 @@ enum InvitationStatus {
 }
 
 model DepartmentConfiguration {
-  id                String   @id @default(cuid())
-  academicYear      String
-  department        String
-  divisionCount     Int      @default(0)
-  studentCount      Int      @default(0)
-  projectGroupCount Int      @default(0)
-  totalIntake       Int      @default(0)
-  isActive          Boolean  @default(true)
+  id                 String   @id @default(cuid())
+  academicYear       String
+  department         String
+  divisionCount      Int      @default(0)
+  studentCount       Int      @default(0)
+  projectGroupCount  Int      @default(0)
+  totalIntake        Int      @default(0)
+  isActive           Boolean  @default(true)
   configuredByUserId String?
-  configuredBy      User?    @relation(fields: [configuredByUserId], references: [id], onDelete: SetNull)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  configuredBy       User?    @relation(fields: [configuredByUserId], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@unique([academicYear, department])
   @@index([department, academicYear])
@@ -706,4 +706,94 @@ model FacultyWorkLog {
   @@index([date])
   @@index([department, date])
   @@map("faculty_work_logs")
+}
+
+enum WeeklyTaskStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REVISION_REQUESTED
+}
+
+enum MeetingType {
+  ONLINE
+  IN_PERSON
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+// Global weekly milestone standard set by Admin
+model WeeklyMilestone {
+  id          String                   @id @default(cuid())
+  weekNumber  Int
+  title       String
+  description String?
+  startDate   DateTime
+  dueDate     DateTime
+  isBackdated Boolean                  @default(false) // Supports July onwards historical backfill
+  // Array of required deliverable checklist items
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  checklists  MilestoneChecklistItem[]
+  tasks       WeeklyTaskSubmission[]
+
+  @@unique([weekNumber])
+}
+
+model MilestoneChecklistItem {
+  id                String          @id @default(cuid())
+  text              String // The deliverable checklist description
+  weeklyMilestoneId String
+  weeklyMilestone   WeeklyMilestone @relation(fields: [weeklyMilestoneId], references: [id], onDelete: Cascade)
+  createdAt         DateTime        @default(now())
+}
+
+// Per-project weekly submission card on Kanban
+model WeeklyTaskSubmission {
+  id          String           @id @default(cuid())
+  projectId   String
+  milestoneId String
+  status      WeeklyTaskStatus @default(PENDING)
+  workLog     String? // Narrative summary from students
+  feedback    String? // Guide review feedback
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+
+  milestone     WeeklyMilestone      @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  evidenceLinks WeeklyEvidenceLink[]
+  syncMeetings  WeeklySyncMeeting[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, milestoneId])
+}
+
+// Submitted proof/evidence (GitHub repos, Drive links, reports)
+model WeeklyEvidenceLink {
+  id           String               @id @default(cuid())
+  submissionId String
+  title        String
+  url          String
+  type         String // "GITHUB", "DRIVE", "DESIGN", "DOCUMENT"
+  submission   WeeklyTaskSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime             @default(now())
+}
+
+// Scheduled end-of-week review meetings with Guide
+model WeeklySyncMeeting {
+  id           String               @id @default(cuid())
+  submissionId String
+  scheduledAt  DateTime
+  meetingType  MeetingType
+  locationUrl  String // Room number or Online meeting link
+  notes        String?
+  status       MeetingStatus        @default(SCHEDULED)
+  submission   WeeklyTaskSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 }

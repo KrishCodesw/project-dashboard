@@ -190,7 +190,7 @@ export default function StudentProjectDetailClient({
         </TabsList>
 
         <TabsContent value="tasks" className="mt-6">
-          <TaskKanban tasks={tasks ?? []} onTaskUpdate={handleTaskUpdate} />
+          <TaskKanban projectId={projectId} tasks={tasks ?? []} onTaskUpdate={handleTaskUpdate} />
         </TabsContent>
 
         <TabsContent value="milestones" className="mt-6">

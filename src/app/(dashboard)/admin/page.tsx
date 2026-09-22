@@ -21,6 +21,7 @@ import {
   Sparkles,
   MessageSquare,
   Award,
+  Calendar,
 } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -126,6 +127,14 @@ export default function AdminOverviewPage() {
             <Button className="w-full sm:w-auto flex items-center gap-2">
               <Presentation className="h-4 w-4" />
               Go to Showcase
+            </Button>
+          </Link>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <Link href="/admin/weekly-milestones">
+            <Button className="w-full sm:w-auto flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Weekly Milestones
             </Button>
           </Link>
         </motion.div>

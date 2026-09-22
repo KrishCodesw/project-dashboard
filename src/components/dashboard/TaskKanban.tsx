@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -25,6 +25,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { getProjectWeeklySubmissions } from "@/server/actions/common-weekly-tasks";
+import { WeeklyTaskStatus } from "@prisma/client";
+import { WeeklyStatusBadge } from "@/components/weekly-tasks/WeeklyStatusBadge";
 
 interface Task {
   id: string;
@@ -36,11 +39,44 @@ interface Task {
   _count: { subtasks: number; comments: number };
 }
 
+interface WeeklyTaskSubmissionData {
+  id: string;
+  milestone: {
+    weekNumber: number;
+    title: string;
+    description?: string | null;
+    startDate: Date;
+    dueDate: Date;
+    checklists: { text: string }[];
+  };
+  status: WeeklyTaskStatus;
+  workLog: string | null;
+  feedback: string | null;
+  submittedAt: Date | null;
+  reviewedAt: Date | null;
+  evidenceLinks: Array<{
+    id: string;
+    title: string;
+    url: string;
+    type: string;
+  }>;
+  syncMeetings: Array<{
+    id: string;
+    scheduledAt: Date;
+    meetingType: string;
+    locationUrl: string;
+    notes: string | null;
+    status: string;
+  }>;
+}
+
 interface TaskKanbanProps {
+  projectId: string;
   tasks: Task[];
   onTaskMove?: (taskId: string, newStatus: string) => void;
   onTaskClick?: (taskId: string) => void;
   onTaskUpdate?: (taskId: string, data: any) => void;
+  onWeeklyTaskClick?: (submissionId: string) => void;
 }
 
 const columns = [
@@ -57,6 +93,22 @@ const priorityColors: Record<string, string> = {
   HIGH: "bg-amber-500",
   CRITICAL: "bg-rose-500",
 };
+
+// Map WeeklyTaskStatus to our column status
+function mapWeeklyTaskStatusToColumn(status: WeeklyTaskStatus): string {
+  switch (status) {
+    case WeeklyTaskStatus.PENDING:
+      return "TODO";
+    case WeeklyTaskStatus.UNDER_REVIEW:
+      return "IN_REVIEW";
+    case WeeklyTaskStatus.APPROVED:
+      return "DONE";
+    case WeeklyTaskStatus.REVISION_REQUESTED:
+      return "IN_PROGRESS"; // Treat revision requested as in progress
+    default:
+      return "TODO";
+  }
+}
 
 function TaskCard({ task, onClick }: { task: Task; onClick?: () => void }) {
   const {
@@ -123,7 +175,60 @@ function TaskCard({ task, onClick }: { task: Task; onClick?: () => void }) {
   );
 }
 
-function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
+// Non-draggable card for weekly task submissions
+function WeeklyTaskCard({
+  weeklyTask,
+  onClick,
+}: {
+  weeklyTask: WeeklyTaskSubmissionData;
+  onClick?: () => void;
+}) {
+  const columnId = mapWeeklyTaskStatusToColumn(weeklyTask.status);
+  const column = columns.find((c) => c.id === columnId);
+  const { weekNumber, title: milestoneTitle, dueDate } = weeklyTask.milestone;
+
+  return (
+    <div
+      className={cn(
+        "group rounded-lg border bg-card p-3 shadow-sm transition-shadow hover:shadow-md cursor-pointer",
+        "border-l-2",
+        column?.color
+      )}
+      onClick={onClick}
+    >
+      <div className="flex items-start gap-2">
+        <div className="flex items-center gap-2">
+          <div className={cn("h-2 w-2 rounded-full", priorityColors.MEDIUM)} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-medium">Week {weekNumber}</span>
+              <span className="text-xs font-medium">{milestoneTitle}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+              {dueDate && (
+                <>
+                  <Calendar className="h-3 w-3" />
+                  <span>{format(new Date(dueDate), "MMM d")}</span>
+                </>
+              )}
+              <WeeklyStatusBadge status={weeklyTask.status} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DroppableColumn({
+  id,
+  children,
+  weeklyChildren,
+}: {
+  id: string;
+  children: React.ReactNode;
+  weeklyChildren: React.ReactNode;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <div
@@ -134,17 +239,62 @@ function DroppableColumn({ id, children }: { id: string; children: React.ReactNo
       )}
     >
       {children}
+      <div className="mt-4">
+        {weeklyChildren}
+      </div>
     </div>
   );
 }
 
-export function TaskKanban({ tasks, onTaskMove, onTaskClick, onTaskUpdate }: TaskKanbanProps) {
+export function TaskKanban({
+  projectId,
+  tasks,
+  onTaskMove,
+  onTaskClick,
+  onTaskUpdate,
+  onWeeklyTaskClick,
+}: TaskKanbanProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [weeklyTasks, setWeeklyTasks] = useState<WeeklyTaskSubmissionData[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
+
+  // Fetch weekly task submissions for the project
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchWeeklyTasks() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getProjectWeeklySubmissions(projectId);
+        if (!cancelled) {
+          setWeeklyTasks(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError("Failed to load weekly tasks");
+          console.error(err);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    if (projectId) {
+      fetchWeeklyTasks();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -178,59 +328,90 @@ export function TaskKanban({ tasks, onTaskMove, onTaskClick, onTaskUpdate }: Tas
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {columns.map((column) => {
-          const columnTasks = tasks.filter((t) => t.status === column.id);
-          return (
-            <div
-              key={column.id}
-              className={cn(
-                "flex w-72 shrink-0 flex-col rounded-lg border border-t-2 bg-card/50",
-                column.color
-              )}
-            >
-              <div className="flex items-center justify-between p-3">
-                <h3 className="text-sm font-semibold">{column.title}</h3>
-                <Badge variant="secondary" className="text-xs">
-                  {columnTasks.length}
-                </Badge>
-              </div>
-              <SortableContext
-                id={column.id}
-                items={columnTasks.map((t) => t.id)}
-                strategy={verticalListSortingStrategy}
+    <>
+      {loading && (
+        <div className="w-full flex justify-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      )}
+      {!loading && error && (
+        <div className="w-full flex justify-center py-4 text-red-500">
+          {error}
+        </div>
+      )}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {columns.map((column) => {
+            const columnTasks = tasks.filter((t) => t.status === column.id);
+            const columnWeeklyTasks = weeklyTasks.filter(
+              (wt) => mapWeeklyTaskStatusToColumn(wt.status) === column.id
+            );
+            return (
+              <div
+                key={column.id}
+                className={cn(
+                  "flex w-72 shrink-0 flex-col rounded-lg border border-t-2 bg-card/50",
+                  column.color
+                )}
               >
-                <DroppableColumn id={column.id}>
-                  {columnTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onClick={onTaskClick ? () => onTaskClick(task.id) : undefined}
-                    />
-                  ))}
-                </DroppableColumn>
-              </SortableContext>
-            </div>
-          );
-        })}
-      </div>
+                <div className="flex items-center justify-between p-3">
+                  <h3 className="text-sm font-semibold">{column.title}</h3>
+                  <Badge variant="secondary" className="text-xs">
+                    {columnTasks.length}
+                  </Badge>
+                </div>
+                <SortableContext
+                  id={column.id}
+                  items={columnTasks.map((t) => t.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <DroppableColumn
+                    id={column.id}
+                    children={
+                      columnTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onClick={onTaskClick ? () => onTaskClick(task.id) : undefined}
+                        />
+                      ))
+                    }
+                    weeklyChildren={
+                      columnWeeklyTasks.map((weeklyTask) => (
+                        <WeeklyTaskCard
+                          key={weeklyTask.id}
+                          weeklyTask={weeklyTask}
+                          onClick={
+                            onWeeklyTaskClick
+                              ? () => onWeeklyTaskClick(weeklyTask.id)
+                              : undefined
+                          }
+                        />
+                      ))
+                    }
+                  />
+                </SortableContext>
+              </div>
+            );
+          })}
+        </div>
 
-      <DragOverlay>
-        {activeTask && (
-          <div className="rounded-lg border bg-card p-3 shadow-lg opacity-90 w-72">
-            <div className="flex items-center gap-2">
-              <div className={cn("h-2 w-2 rounded-full", priorityColors[activeTask.priority])} />
-              <span className="text-sm font-medium">{activeTask.title}</span>
+        <DragOverlay>
+          {activeTask && (
+            <div className="rounded-lg border bg-card p-3 shadow-lg opacity-90 w-72">
+              <div className="flex items-center gap-2">
+                <div className={cn("h-2 w-2 rounded-full", priorityColors[activeTask.priority])} />
+                <span className="text-sm font-medium">{activeTask.title}</span>
+              </div>
             </div>
-          </div>
-        )}
-      </DragOverlay>
-    </DndContext>
+          )}
+        </DragOverlay>
+      </DndContext>
+    </>
   );
 }
