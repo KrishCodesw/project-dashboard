@@ -107,7 +107,8 @@ export default function AdminOverviewPage() {
   }));
 
   const deptData = s.projectsByDepartment.map((d) => ({
-    name: d.department.length > 20 ? d.department.slice(0, 20) + "…" : d.department,
+    name:
+      d.department.length > 20 ? d.department.slice(0, 20) + "…" : d.department,
     fullName: d.department,
     count: d.count,
   }));
@@ -115,14 +116,21 @@ export default function AdminOverviewPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-self-center gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <h1 className="text-2xl font-bold">Admin Overview</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Platform-wide analytics and system health
           </p>
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
           <Link href="/showcase">
             <Button className="w-full sm:w-auto flex items-center gap-2">
               <Presentation className="h-4 w-4" />
@@ -130,61 +138,140 @@ export default function AdminOverviewPage() {
             </Button>
           </Link>
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
           <Link href="/admin/weekly-milestones">
             <Button className="w-full sm:w-auto flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Weekly Milestones
+              Weekly Tasks
             </Button>
           </Link>
         </motion.div>
       </div>
 
       {/* KPI Row */}
-      <motion.div variants={container} initial="hidden" animate="show" className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid gap-4 grid-cols-2 lg:grid-cols-4"
+      >
         <motion.div variants={item}>
-          <StatCard title="Total Users" value={s.userCounts.total} icon={Users} color="indigo" />
+          <StatCard
+            title="Total Users"
+            value={s.userCounts.total}
+            icon={Users}
+            color="indigo"
+          />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard title="Students" value={s.userCounts.students} icon={GraduationCap} color="violet" />
+          <StatCard
+            title="Students"
+            value={s.userCounts.students}
+            icon={GraduationCap}
+            color="violet"
+          />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard title="Teachers" value={s.userCounts.teachers} icon={BookOpen} color="emerald" />
+          <StatCard
+            title="Teachers"
+            value={s.userCounts.teachers}
+            icon={BookOpen}
+            color="emerald"
+          />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard title="Admins" value={s.userCounts.admins} icon={Shield} color="amber" />
+          <StatCard
+            title="Admins"
+            value={s.userCounts.admins}
+            icon={Shield}
+            color="amber"
+          />
         </motion.div>
       </motion.div>
 
       {/* Platform KPI Row */}
-      <motion.div variants={container} initial="hidden" animate="show" className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid gap-4 grid-cols-2 lg:grid-cols-4"
+      >
         <motion.div variants={item}>
-          <StatCard title="Total Projects" value={s.projectsByStatus.reduce((a, b) => a + b.count, 0)} icon={Layers} color="blue" />
+          <StatCard
+            title="Total Projects"
+            value={s.projectsByStatus.reduce((a, b) => a + b.count, 0)}
+            icon={Layers}
+            color="blue"
+          />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard title="Project Members" value={s.totalProjectMembers} icon={Users} color="cyan" />
+          <StatCard
+            title="Project Members"
+            value={s.totalProjectMembers}
+            icon={Users}
+            color="cyan"
+          />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard title="Reviews" value={s.reviewStats.total} icon={MessageSquare} color="orange" />
+          <StatCard
+            title="Reviews"
+            value={s.reviewStats.total}
+            icon={MessageSquare}
+            color="orange"
+          />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard title="Publications" value={s.publicationCount} icon={Award} color="rose" />
+          <StatCard
+            title="Publications"
+            value={s.publicationCount}
+            icon={Award}
+            color="rose"
+          />
         </motion.div>
       </motion.div>
 
       {/* Overdue + Pending Row */}
-      <motion.div variants={container} initial="hidden" animate="show" className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="grid gap-4 grid-cols-2 lg:grid-cols-4"
+      >
         <motion.div variants={item}>
-          <StatCard title="Overdue Projects" value={s.projectsOverdue} icon={AlertTriangle} color="red" />
+          <StatCard
+            title="Overdue Projects"
+            value={s.projectsOverdue}
+            icon={AlertTriangle}
+            color="red"
+          />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard title="Overdue Milestones" value={s.milestoneStats.overdue} icon={Clock} color="red" />
+          <StatCard
+            title="Overdue Milestones"
+            value={s.milestoneStats.overdue}
+            icon={Clock}
+            color="red"
+          />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard title="Total Showcase" value={s.showcaseCount} icon={Sparkles} color="purple" />
+          <StatCard
+            title="Total Showcase"
+            value={s.showcaseCount}
+            icon={Sparkles}
+            color="purple"
+          />
         </motion.div>
         <motion.div variants={item}>
-          <StatCard title="Pending Review" value={s.pendingShowcaseCount} icon={FileText} color="yellow" />
+          <StatCard
+            title="Pending Review"
+            value={s.pendingShowcaseCount}
+            icon={FileText}
+            color="yellow"
+          />
         </motion.div>
       </motion.div>
 
@@ -200,15 +287,40 @@ export default function AdminOverviewPage() {
           </CardHeader>
           <CardContent>
             {projectStatusData.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No projects yet</p>
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                No projects yet
+              </p>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={projectStatusData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
+                <BarChart
+                  data={projectStatusData}
+                  margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <YAxis
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "hsl(var(--muted-foreground))" }}
+                    allowDecimals={false}
+                  />
                   <Tooltip
-                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 13 }}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: 13,
+                    }}
                   />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                     {projectStatusData.map((entry, i) => (
@@ -231,7 +343,9 @@ export default function AdminOverviewPage() {
           </CardHeader>
           <CardContent>
             {taskData.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">No tasks yet</p>
+              <p className="text-sm text-muted-foreground py-8 text-center">
+                No tasks yet
+              </p>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
@@ -249,7 +363,12 @@ export default function AdminOverviewPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 13 }}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: 13,
+                    }}
                     formatter={(value: number, name: string) => [value, name]}
                   />
                   <Legend
@@ -278,22 +397,34 @@ export default function AdminOverviewPage() {
             <div className="grid grid-cols-3 gap-4 text-center">
               <div className="rounded-lg bg-muted p-4">
                 <p className="text-2xl font-bold">{s.milestoneStats.total}</p>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mt-1">Total</p>
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mt-1">
+                  Total
+                </p>
               </div>
               <div className="rounded-lg bg-emerald-500/10 p-4">
-                <p className="text-2xl font-bold text-emerald-500">{s.milestoneStats.completed}</p>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-emerald-600/70 mt-1">Completed</p>
+                <p className="text-2xl font-bold text-emerald-500">
+                  {s.milestoneStats.completed}
+                </p>
+                <p className="text-[10px] font-mono uppercase tracking-wider text-emerald-600/70 mt-1">
+                  Completed
+                </p>
               </div>
               <div className="rounded-lg bg-red-500/10 p-4">
-                <p className="text-2xl font-bold text-red-500">{s.milestoneStats.overdue}</p>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-red-600/70 mt-1">Overdue</p>
+                <p className="text-2xl font-bold text-red-500">
+                  {s.milestoneStats.overdue}
+                </p>
+                <p className="text-[10px] font-mono uppercase tracking-wider text-red-600/70 mt-1">
+                  Overdue
+                </p>
               </div>
             </div>
             {s.milestoneStats.total > 0 && (
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full bg-emerald-500 transition-all"
-                  style={{ width: `${Math.round((s.milestoneStats.completed / s.milestoneStats.total) * 100)}%` }}
+                  style={{
+                    width: `${Math.round((s.milestoneStats.completed / s.milestoneStats.total) * 100)}%`,
+                  }}
                 />
               </div>
             )}
@@ -312,26 +443,40 @@ export default function AdminOverviewPage() {
             <div className="grid grid-cols-3 gap-4 text-center">
               <div className="rounded-lg bg-muted p-4">
                 <p className="text-2xl font-bold">{s.reviewStats.total}</p>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mt-1">Total</p>
+                <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mt-1">
+                  Total
+                </p>
               </div>
               <div className="rounded-lg bg-blue-500/10 p-4">
-                <p className="text-2xl font-bold text-blue-500">{s.reviewStats.scheduled}</p>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-blue-600/70 mt-1">Scheduled</p>
+                <p className="text-2xl font-bold text-blue-500">
+                  {s.reviewStats.scheduled}
+                </p>
+                <p className="text-[10px] font-mono uppercase tracking-wider text-blue-600/70 mt-1">
+                  Scheduled
+                </p>
               </div>
               <div className="rounded-lg bg-emerald-500/10 p-4">
-                <p className="text-2xl font-bold text-emerald-500">{s.reviewStats.completed}</p>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-emerald-600/70 mt-1">Completed</p>
+                <p className="text-2xl font-bold text-emerald-500">
+                  {s.reviewStats.completed}
+                </p>
+                <p className="text-[10px] font-mono uppercase tracking-wider text-emerald-600/70 mt-1">
+                  Completed
+                </p>
               </div>
             </div>
             {s.reviewStats.total > 0 && (
               <div className="flex gap-1 h-2">
                 <div
                   className="rounded-full bg-emerald-500 transition-all"
-                  style={{ width: `${Math.round((s.reviewStats.completed / s.reviewStats.total) * 100)}%` }}
+                  style={{
+                    width: `${Math.round((s.reviewStats.completed / s.reviewStats.total) * 100)}%`,
+                  }}
                 />
                 <div
                   className="rounded-full bg-blue-500 transition-all"
-                  style={{ width: `${Math.round((s.reviewStats.scheduled / s.reviewStats.total) * 100)}%` }}
+                  style={{
+                    width: `${Math.round((s.reviewStats.scheduled / s.reviewStats.total) * 100)}%`,
+                  }}
                 />
               </div>
             )}
@@ -349,14 +494,48 @@ export default function AdminOverviewPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={Math.max(200, deptData.length * 36)}>
-              <BarChart data={deptData} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} tick={{ fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
-                <YAxis dataKey="name" type="category" fontSize={10} tickLine={false} axisLine={false} tick={{ fill: "hsl(var(--muted-foreground))" }} width={120} />
+            <ResponsiveContainer
+              width="100%"
+              height={Math.max(200, deptData.length * 36)}
+            >
+              <BarChart
+                data={deptData}
+                layout="vertical"
+                margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                  horizontal={false}
+                />
+                <XAxis
+                  type="number"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "hsl(var(--muted-foreground))" }}
+                  allowDecimals={false}
+                />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "hsl(var(--muted-foreground))" }}
+                  width={120}
+                />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 13 }}
-                  formatter={(value: number, _name: string, props: any) => [value, props.payload.fullName]}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: 13,
+                  }}
+                  formatter={(value: number, _name: string, props: any) => [
+                    value,
+                    props.payload.fullName,
+                  ]}
                 />
                 <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                   {deptData.map((_, i) => (
@@ -425,4 +604,3 @@ export default function AdminOverviewPage() {
     </div>
   );
 }
-
