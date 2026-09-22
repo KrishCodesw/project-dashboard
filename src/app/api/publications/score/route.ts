@@ -17,7 +17,7 @@ export async function OPTIONS() {
 // 2. Input Validation Schema
 const ScoreQuerySchema = z.object({
   publicationType: z.nativeEnum(PublicationType, {
-    errorMap: () => ({ message: "Invalid publication type. Must be PAPER, PATENT, BOOK_CHAPTER, COPYRIGHT, or REVIEW." }),
+    errorMap: () => ({ message: `Invalid publication type. Must be one of: ${Object.values(PublicationType).join(", ")}.` }),
   }),
   // Default to empty string if missing, matching your DB seeds
   subType: z.string().trim().optional().default(""), 
