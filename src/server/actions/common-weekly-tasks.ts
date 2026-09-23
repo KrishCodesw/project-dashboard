@@ -2,11 +2,16 @@
 
 import { prisma } from "@/lib/prisma";
 import { WeeklyTaskStatus } from "@prisma/client";
+import { requireCoeUser } from "@/lib/coe-guard";
 
 /**
  * Calculates project completion metrics across all assigned weekly milestones.
  */
 export async function getProjectWeeklyMetrics(projectId: string) {
+  const user = await requireCoeUser();
+  if (!await verifyGuideAccess(user.id, projectId)) {
+    throw new Error("Unauthorized");
+  }
   const submissions = await prisma.weeklyTaskSubmission.findMany({
     where: { projectId },
     select: { status: true },
@@ -44,6 +49,10 @@ export async function verifyGuideAccess(userId: string, projectId: string): Prom
  * Fetches weekly task submissions for a project with milestone, evidence links, and sync meetings.
  */
 export async function getProjectWeeklySubmissions(projectId: string) {
+  const user = await requireCoeUser();
+  if (!await verifyGuideAccess(user.id, projectId)) {
+    throw new Error("Unauthorized");
+  }
   return await prisma.weeklyTaskSubmission.findMany({
     where: { projectId },
     include: {
