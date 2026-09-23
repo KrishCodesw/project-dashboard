@@ -135,10 +135,7 @@ export function TasksTab({ projectId }: TasksTabProps) {
         </Dialog>
       </div>
 
-      <TaskKanban
-        tasks={tasks ?? []}
-        onTaskUpdate={handleTaskUpdate}
-      />
+      <TaskKanban projectId={projectId} tasks={tasks ?? []} onTaskUpdate={handleTaskUpdate} />
     </div>
   );
 }

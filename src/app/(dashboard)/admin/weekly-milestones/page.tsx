@@ -1,0 +1,659 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { toast } from "sonner";
+import {
+  assignWeeklyMilestoneToAllProjects,
+  getAllWeeklyMilestones,
+  updateWeeklyMilestone,
+  deleteWeeklyMilestone,
+} from "@/server/actions/weekly-milestones";
+import { CreateMilestoneSchema } from "@/lib/validations/weekly-task";
+import type { z } from "zod";
+
+type CreateMilestoneInput = z.infer<typeof CreateMilestoneSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Date Helpers                                                       */
+/* ------------------------------------------------------------------ */
+function formatDateForInput(
+  dateInput: Date | string | null | undefined,
+): string {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateForDisplay(
+  dateInput: Date | string | null | undefined,
+): string {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Helper: Reusable Checklist Input                                   */
+/* ------------------------------------------------------------------ */
+function ChecklistInput({
+  items,
+  setItems,
+  disabled = false,
+}: {
+  items: string[];
+  setItems: (items: string[]) => void;
+  disabled?: boolean;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const add = () => {
+    const trimmed = draft.trim();
+    if (trimmed && !items.includes(trimmed)) {
+      setItems([...items, trimmed]);
+      setDraft("");
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="checklist-items">Checklist (deliverables)</Label>
+      <div className="flex items-center space-x-2">
+        <Input
+          id="checklist-items"
+          placeholder="Type an item and press Enter"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          disabled={disabled}
+          className="max-w-xs"
+        />
+        <Button
+          type="button"
+          onClick={add}
+          disabled={disabled || !draft.trim()}
+          variant="secondary"
+        >
+          Add
+        </Button>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic mt-1">
+          Add at least one checklist item
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {items.map((text, i) => (
+            <span
+              key={`${text}-${i}`}
+              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground"
+            >
+              {text}
+              <button
+                type="button"
+                onClick={() => setItems(items.filter((_, idx) => idx !== i))}
+                disabled={disabled}
+                className="ml-1.5 h-3.5 w-3.5 rounded-full inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted-foreground/20"
+                aria-label="Remove item"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Main Admin Page Component                                          */
+/* ------------------------------------------------------------------ */
+export default function WeeklyMilestonesAdminPage() {
+  const queryClient = useQueryClient();
+
+  // Create state
+  const [weekNumber, setWeekNumber] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checklistItems, setChecklistItems] = useState<string[]>([]);
+
+  // Edit state
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(
+    null,
+  );
+  const [editWeekNumber, setEditWeekNumber] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editChecklistItems, setEditChecklistItems] = useState<string[]>([]);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
+  // Delete state
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const {
+    data: milestones,
+    isLoading: milestonesLoading,
+    error: milestonesError,
+  } = useQuery({
+    queryKey: ["admin", "weekly-milestones"],
+    queryFn: getAllWeeklyMilestones,
+  });
+
+  // Synchronize edit form when selecting a milestone
+  useEffect(() => {
+    if (editingMilestoneId && milestones) {
+      const target = milestones.find((m) => m.id === editingMilestoneId);
+      if (target) {
+        setEditWeekNumber(target.weekNumber.toString());
+        setEditTitle(target.title);
+        setEditDescription(target.description ?? "");
+        setEditStartDate(formatDateForInput(target.startDate));
+        setEditDueDate(formatDateForInput(target.dueDate));
+        setEditChecklistItems(
+          target.checklists.map((c: any) =>
+            typeof c === "string" ? c : c.text,
+          ),
+        );
+      }
+    }
+  }, [editingMilestoneId, milestones]);
+
+  const resetCreateForm = () => {
+    setWeekNumber("");
+    setTitle("");
+    setDescription("");
+    setStartDate("");
+    setDueDate("");
+    setChecklistItems([]);
+  };
+
+  const resetEditForm = () => {
+    setEditingMilestoneId(null);
+    setEditWeekNumber("");
+    setEditTitle("");
+    setEditDescription("");
+    setEditStartDate("");
+    setEditDueDate("");
+    setEditChecklistItems([]);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    if (checklistItems.length === 0) {
+      toast.error("Please add at least one checklist item");
+      return;
+    }
+    if (!startDate || !dueDate) {
+      toast.error("Please provide both start and due dates");
+      return;
+    }
+    if (new Date(dueDate) < new Date(startDate)) {
+      toast.error("Due date must be on or after the start date");
+      return;
+    }
+    setIsSubmitting(true);
+
+    try {
+      const payload: CreateMilestoneInput = {
+        weekNumber: Number(weekNumber),
+        title,
+        description: description || undefined,
+        startDate: new Date(startDate),
+        dueDate: new Date(dueDate),
+        checklists: checklistItems,
+        isBackdated: false,
+      };
+
+      const result = await assignWeeklyMilestoneToAllProjects(payload);
+      toast.success(
+        `Weekly milestone "${result.milestone.title}" assigned to ${result.createdSubmissionsCount} projects.`,
+      );
+      resetCreateForm();
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "weekly-milestones"],
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message ?? "Failed to create weekly milestone");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isEditSubmitting) return;
+    if (!editingMilestoneId) return;
+    if (editChecklistItems.length === 0) {
+      toast.error("Please add at least one checklist item");
+      return;
+    }
+    if (!editStartDate || !editDueDate) {
+      toast.error("Please provide both start and due dates");
+      return;
+    }
+    if (new Date(editDueDate) < new Date(editStartDate)) {
+      toast.error("Due date must be on or after the start date");
+      return;
+    }
+    setIsEditSubmitting(true);
+
+    try {
+      const payload = {
+        id: editingMilestoneId,
+        weekNumber: Number(editWeekNumber),
+        title: editTitle,
+        description: editDescription || undefined,
+        startDate: new Date(editStartDate),
+        dueDate: new Date(editDueDate),
+        checklists: editChecklistItems,
+        isBackdated: false,
+      };
+
+      await updateWeeklyMilestone(payload);
+      toast.success(`Weekly milestone "${editTitle}" updated.`);
+      resetEditForm();
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "weekly-milestones"],
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message ?? "Failed to update weekly milestone");
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteWeeklyMilestone(id);
+      toast.success("Weekly milestone deleted.");
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "weekly-milestones"],
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message ?? "Failed to delete weekly milestone");
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto">
+      <div>
+        <h1 className="text-2xl font-bold">Create Weekly Milestone (Admin)</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Define a global weekly milestone; the system will create a submission
+          card for <strong>every</strong> project automatically.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Weekly Milestone Details</CardTitle>
+          <CardDescription>
+            Fill in the fields below to create a milestone assigned to all
+            projects.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="weekNumber">Week Number</Label>
+                <Input
+                  id="weekNumber"
+                  type="number"
+                  min={1}
+                  value={weekNumber}
+                  onChange={(e) => setWeekNumber(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                  maxLength={100}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description (optional)</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="dueDate">Due Date</Label>
+                <Input
+                  id="dueDate"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <ChecklistInput
+              items={checklistItems}
+              setItems={setChecklistItems}
+              disabled={isSubmitting}
+            />
+
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              {isSubmitting ? "Creating…" : "Create Weekly Milestone"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Existing Weekly Milestones List */}
+      <section className="mt-8 space-y-4">
+        <h2 className="text-xl font-semibold">Existing Weekly Milestones</h2>
+
+        {milestonesLoading && (
+          <p className="text-sm text-muted-foreground">Loading milestones...</p>
+        )}
+        {milestonesError && (
+          <p className="text-sm text-destructive">
+            Failed to load milestones: {(milestonesError as Error).message}
+          </p>
+        )}
+        {!milestonesLoading && !milestonesError && milestones && (
+          <div>
+            {milestones.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No weekly milestones defined yet.
+              </p>
+            ) : (
+              <div className="grid gap-4">
+                {milestones.map((m: any) => {
+                  const isEditing = editingMilestoneId === m.id;
+                  return (
+                    <Card
+                      key={m.id}
+                      className="hover:shadow-md transition-shadow"
+                    >
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg font-semibold flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
+                              Week {m.weekNumber}
+                            </span>
+                            <span>{m.title}</span>
+                          </div>
+                          {!isEditing && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditingMilestoneId(m.id)}
+                                aria-label="Edit milestone"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                  />
+                                </svg>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setDeleteConfirmId(m.id)}
+                                aria-label="Delete milestone"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H9a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </Button>
+                            </div>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {isEditing ? (
+                          <form
+                            onSubmit={handleEditSubmit}
+                            className="space-y-4"
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="space-y-2">
+                                <Label>Week Number</Label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={editWeekNumber}
+                                  onChange={(e) =>
+                                    setEditWeekNumber(e.target.value)
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-2 md:col-span-2">
+                                <Label>Title</Label>
+                                <Input
+                                  value={editTitle}
+                                  onChange={(e) => setEditTitle(e.target.value)}
+                                  required
+                                  maxLength={100}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>Description (optional)</Label>
+                              <Textarea
+                                value={editDescription}
+                                onChange={(e) =>
+                                  setEditDescription(e.target.value)
+                                }
+                                rows={3}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Start Date</Label>
+                                <Input
+                                  type="date"
+                                  value={editStartDate}
+                                  onChange={(e) =>
+                                    setEditStartDate(e.target.value)
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Due Date</Label>
+                                <Input
+                                  type="date"
+                                  value={editDueDate}
+                                  onChange={(e) =>
+                                    setEditDueDate(e.target.value)
+                                  }
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <ChecklistInput
+                              items={editChecklistItems}
+                              setItems={setEditChecklistItems}
+                              disabled={isEditSubmitting}
+                            />
+
+                            <div className="flex justify-end space-x-2 pt-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={resetEditForm}
+                              >
+                                Cancel
+                              </Button>
+                              <Button type="submit" disabled={isEditSubmitting}>
+                                {isEditSubmitting ? "Saving…" : "Save Changes"}
+                              </Button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            {m.description && (
+                              <p className="text-sm text-muted-foreground">
+                                {m.description}
+                              </p>
+                            )}
+                            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                              <span>
+                                <strong className="font-medium">Start:</strong>{" "}
+                                {formatDateForDisplay(m.startDate)}
+                              </span>
+                              <span>
+                                <strong className="font-medium">Due:</strong>{" "}
+                                {formatDateForDisplay(m.dueDate)}
+                              </span>
+                              <span>
+                                <strong className="font-medium">
+                                  Deliverables:
+                                </strong>{" "}
+                                {m.checklists?.length ?? 0} item
+                                {m.checklists?.length !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+                            {m.checklists && m.checklists.length > 0 && (
+                              <ul className="list-disc list-inside text-xs text-muted-foreground space-y-0.5">
+                                {m.checklists.map((item: any, idx: number) => (
+                                  <li key={item.id ?? idx}>
+                                    {typeof item === "string"
+                                      ? item
+                                      : item.text}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {deleteConfirmId !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-background text-popover-foreground border rounded-lg p-6 max-w-sm w-full space-y-4 shadow-lg">
+              <h3 className="text-lg font-semibold">
+                Delete Weekly Milestone?
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                This action cannot be undone. All associated submissions,
+                evidence links, and meetings will be deleted.
+              </p>
+              <div className="flex justify-end space-x-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirmId(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    handleDelete(deleteConfirmId);
+                    setDeleteConfirmId(null);
+                  }}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
