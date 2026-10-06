@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { WeeklyTaskStatus } from "@prisma/client";
-import { requireCoeUser } from "@/lib/coe-guard";
+import { requireCoeUser, requireRole } from "@/lib/coe-guard";
 import { z } from "zod";
 
 /**
@@ -93,15 +93,16 @@ export async function getProjectWeeklySubmissions(projectId: string) {
 
 /**
  * Updates the status of a weekly task submission.
- * Only users with access to the project (teacher or member) can change the status.
+ * Only teachers (guides) of the project can change the status.
  */
 export async function updateWeeklyTaskStatus(
   submissionId: string,
   status: WeeklyTaskStatus
 ) {
-  const user = await requireCoeUser();
+  // Only teachers can update weekly task status
+  const user = await requireRole("TEACHER");
 
-  // Verify submission exists and user has access to its project
+  // Verify submission exists and user is the teacher of the project
   const submission = await prisma.weeklyTaskSubmission.findUnique({
     where: { id: submissionId },
     include: {
@@ -109,9 +110,6 @@ export async function updateWeeklyTaskStatus(
         select: {
           id: true,
           teacherId: true,
-          members: {
-            select: { studentId: true },
-          },
         },
       },
     },
@@ -121,12 +119,8 @@ export async function updateWeeklyTaskStatus(
     throw new Error("Submission not found");
   }
 
-  const hasAccess =
-    submission.project.teacherId === user.id ||
-    submission.project.members.some((m) => m.studentId === user.id);
-
-  if (!hasAccess) {
-    throw new Error("Unauthorized");
+  if (submission.project.teacherId !== user.id) {
+    throw new Error("Unauthorized: not the teacher of this project");
   }
 
   // Update the status
