@@ -77,6 +77,8 @@ interface TaskKanbanProps {
   onTaskClick?: (taskId: string) => void;
   onTaskUpdate?: (taskId: string, data: any) => void;
   onWeeklyTaskClick?: (submissionId: string) => void;
+  onWeeklyTaskStatusChange?: (submissionId: string, status: WeeklyTaskStatus) => void;
+  refreshKey?: number;
 }
 
 const columns = [
@@ -179,13 +181,21 @@ function TaskCard({ task, onClick }: { task: Task; onClick?: () => void }) {
 function WeeklyTaskCard({
   weeklyTask,
   onClick,
+  onWeeklyTaskStatusChange,
 }: {
   weeklyTask: WeeklyTaskSubmissionData;
   onClick?: () => void;
+  onWeeklyTaskStatusChange?: (status: WeeklyTaskStatus) => void;
 }) {
   const columnId = mapWeeklyTaskStatusToColumn(weeklyTask.status);
   const column = columns.find((c) => c.id === columnId);
   const { weekNumber, title: milestoneTitle, dueDate } = weeklyTask.milestone;
+
+  const handleStatusChange = (status: WeeklyTaskStatus) => {
+    onWeeklyTaskStatusChange?.(status);
+    // Prevent card click from triggering
+    return false;
+  };
 
   return (
     <div
@@ -213,6 +223,42 @@ function WeeklyTaskCard({
               )}
               <WeeklyStatusBadge status={weeklyTask.status} />
             </div>
+            {/* Status change buttons */}
+            {onWeeklyTaskStatusChange && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {[WeeklyTaskStatus.PENDING, WeeklyTaskStatus.UNDER_REVIEW, WeeklyTaskStatus.APPROVED, WeeklyTaskStatus.REVISION_REQUESTED].map(
+                  (status) => (
+                    <button
+                      key={status}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStatusChange(status);
+                      }}
+                      disabled={weeklyTask.status === status}
+                      className={cn(
+                        "px-2 py-1 text-xs rounded",
+                        weeklyTask.status === status
+                          ? "bg-accent/20"
+                          : "bg-muted hover:bg-accent/10"
+                      )}
+                    >
+                      {status === WeeklyTaskStatus.PENDING
+                        ? "To Do"
+                        : status === WeeklyTaskStatus.UNDER_REVIEW
+                        ? "In Review"
+                        : status === WeeklyTaskStatus.APPROVED
+                        ? "Done"
+                        : "Revision"}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
+            {weeklyTask.workLog && (
+              <div className="mt-2 w-full text-sm text-muted-foreground">
+                {weeklyTask.workLog}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -253,6 +299,8 @@ export function TaskKanban({
   onTaskClick,
   onTaskUpdate,
   onWeeklyTaskClick,
+  onWeeklyTaskStatusChange,
+  refreshKey,
 }: TaskKanbanProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [weeklyTasks, setWeeklyTasks] = useState<WeeklyTaskSubmissionData[]>([]);
@@ -294,7 +342,7 @@ export function TaskKanban({
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, refreshKey]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -391,6 +439,9 @@ export function TaskKanban({
                               ? () => onWeeklyTaskClick(weeklyTask.id)
                               : undefined
                           }
+                          onWeeklyTaskStatusChange={onWeeklyTaskStatusChange
+                            ? (status) => onWeeklyTaskStatusChange(weeklyTask.id, status)
+                            : undefined}
                         />
                       ))
                     }

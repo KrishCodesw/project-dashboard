@@ -12,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Loader2 } from "lucide-react";
 import { createTask } from "@/server/actions/tasks";
+import { reviewWeeklyTaskSubmission } from "@/server/actions/student-weekly-tasks";
+import { updateWeeklyTaskStatus } from "@/server/actions/common-weekly-tasks";
+import { WeeklyTaskStatus } from "@prisma/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,6 +31,7 @@ export function TasksTab({ projectId }: TasksTabProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [assignedToId, setAssignedToId] = useState<string>("none");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const members: { id: string; name: string }[] = ((project as any)?.members ?? []).map(
     (m: any) => ({ id: m.student.id, name: m.student.name })
@@ -62,6 +66,35 @@ export function TasksTab({ projectId }: TasksTabProps) {
       await updateTask.mutateAsync({ taskId, data });
     } catch (err: any) {
       toast.error(err.message || "Failed to update task");
+    }
+  }
+
+  async function handleWeeklyTaskClick(submissionId: string) {
+    // Show confirmation dialog
+    if (window.confirm("Mark this weekly task as approved (Done)?")) {
+      try {
+        await reviewWeeklyTaskSubmission({
+          submissionId,
+          status: "APPROVED",
+          feedback: "", // optional
+        });
+        toast.success("Weekly task approved");
+        // Refresh weekly tasks by updating refreshKey
+        setRefreshKey((prev) => prev + 1);
+      } catch (err: any) {
+        toast.error(err.message || "Failed to approve weekly task");
+      }
+    }
+  }
+
+  async function handleWeeklyTaskStatusChange(submissionId: string, status: WeeklyTaskStatus) {
+    try {
+      await updateWeeklyTaskStatus(submissionId, status);
+      toast.success(`Weekly task status updated to ${status}`);
+      // Refresh weekly tasks by updating refreshKey
+      setRefreshKey((prev) => prev + 1);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update weekly task status");
     }
   }
 
@@ -135,7 +168,14 @@ export function TasksTab({ projectId }: TasksTabProps) {
         </Dialog>
       </div>
 
-      <TaskKanban projectId={projectId} tasks={tasks ?? []} onTaskUpdate={handleTaskUpdate} />
+      <TaskKanban 
+        projectId={projectId} 
+        tasks={tasks ?? []} 
+        onTaskUpdate={handleTaskUpdate}
+        onWeeklyTaskClick={handleWeeklyTaskClick}
+        onWeeklyTaskStatusChange={handleWeeklyTaskStatusChange}
+        refreshKey={refreshKey}
+      />
     </div>
   );
 }

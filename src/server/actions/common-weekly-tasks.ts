@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { WeeklyTaskStatus } from "@prisma/client";
 import { requireCoeUser } from "@/lib/coe-guard";
+import { z } from "zod";
 
 /**
  * Calculates project completion metrics across all assigned weekly milestones.
@@ -32,13 +33,22 @@ export async function getProjectWeeklyMetrics(projectId: string) {
 }
 
 /**
- * Utility to verify if a user has guide access for a given project.
+ * Utility to verify if a user has access to a project (as guide or member).
  */
 export async function verifyGuideAccess(userId: string, projectId: string): Promise<boolean> {
   const project = await prisma.project.findFirst({
     where: {
       id: projectId,
-      teacherId: userId,
+      OR: [
+        { teacherId: userId },
+        {
+          members: {
+            some: {
+              studentId: userId,
+            },
+          },
+        },
+      ],
     },
     select: { id: true },
   });
@@ -79,4 +89,51 @@ export async function getProjectWeeklySubmissions(projectId: string) {
       },
     },
   });
+}
+
+/**
+ * Updates the status of a weekly task submission.
+ * Only users with access to the project (teacher or member) can change the status.
+ */
+export async function updateWeeklyTaskStatus(
+  submissionId: string,
+  status: WeeklyTaskStatus
+) {
+  const user = await requireCoeUser();
+
+  // Verify submission exists and user has access to its project
+  const submission = await prisma.weeklyTaskSubmission.findUnique({
+    where: { id: submissionId },
+    include: {
+      project: {
+        select: {
+          id: true,
+          teacherId: true,
+          members: {
+            select: { studentId: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!submission) {
+    throw new Error("Submission not found");
+  }
+
+  const hasAccess =
+    submission.project.teacherId === user.id ||
+    submission.project.members.some((m) => m.studentId === user.id);
+
+  if (!hasAccess) {
+    throw new Error("Unauthorized");
+  }
+
+  // Update the status
+  await prisma.weeklyTaskSubmission.update({
+    where: { id: submissionId },
+    data: { status },
+  });
+
+  return { success: true };
 }
